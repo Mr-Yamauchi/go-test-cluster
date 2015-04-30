@@ -115,14 +115,13 @@ func _messageResourceHandler(ct *Rmanager, client *ipcs.ClientConnect, recv_mes 
 }
 
 //
-var _ipcTypeMessageFunc = []*IpcTypeMessageHandler {
-        {Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
-	{Types: mes.MESSAGE_ID_RESOUCE, Handler: _messageResourceHandler},
-}
-
-//
 func _processIpcSrvMessage(ct *Rmanager, data interface{}) {
 	//
+	var _ipcTypeMessageFunc = []*IpcTypeMessageHandler {
+        	{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
+		{Types: mes.MESSAGE_ID_RESOUCE, Handler: _messageResourceHandler},
+	}
+
 	switch _v := data.(type) {
 	case *ipcs.ClientConnect:
 		fmt.Println("RECV(ClientConnect) : " + string(_v.Message))

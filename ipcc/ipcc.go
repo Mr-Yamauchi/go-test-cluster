@@ -16,7 +16,7 @@ type IpcClient interface {
 type IpcClientController struct {
 	sockFiles  string
 	conn       net.Conn
-	ipcrecv_ch chan string
+	ipcrecv_ch chan interface{}
 }
 
 //
@@ -149,7 +149,7 @@ func (ic *IpcClientController) Run(sch chan string, rch chan string) {
 }
 
 //
-func (ic *IpcClientController) GetReceiveChannel() chan string {
+func (ic *IpcClientController) GetReceiveChannel() chan interface{} {
 	return ic.ipcrecv_ch
 }
 
@@ -157,6 +157,6 @@ func (ic *IpcClientController) GetReceiveChannel() chan string {
 func New(sf string) *IpcClientController {
 	return &IpcClientController{
 		sockFiles:  sf,
-		ipcrecv_ch: make(chan string),
+		ipcrecv_ch: make(chan interface{}),
 	}
 }

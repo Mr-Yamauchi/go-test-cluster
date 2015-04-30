@@ -9,14 +9,14 @@ import (
 )
 
 type UdpController interface {
-	GetUdpChannel()(chan string, chan string)
-	Run(sc chan string, rc chan string)
+	GetUdpChannel()(chan string, chan interface{})
+	Run(sc chan string, rc chan interface{})
 }
 type UdpSender interface {
 	senderStart(ch chan string)
 }
 type UdpReceiver interface {
-	receiverStart(ch chan string)
+	receiverStart(ch chan interface{})
 }
 
 type SenderStarter func()
@@ -24,9 +24,9 @@ type RecieverStarter func()
 
 type UdpControll struct {
 	udpsend_ch chan string
-	udprecv_ch chan string
+	udprecv_ch chan interface{}
 	senderStart   func(ch chan string)
-	receiverStart func(ch chan string)
+	receiverStart func(ch chan interface{})
 }
 
 //
@@ -81,7 +81,7 @@ func senderStart(ch chan string) {
 }
 
 //
-func receiverStart(ch chan string) {
+func receiverStart(ch chan interface{}) {
 	/* Lets prepare a address at any address at port 10001*/
 	_ServerAddr, err := net.ResolveUDPAddr("udp", ":10001")
 	if err != nil {
@@ -112,7 +112,7 @@ func receiverStart(ch chan string) {
 	}
 }
 //
-func (uc *UdpControll) GetUdpChannel()(chan string, chan string) {
+func (uc *UdpControll) GetUdpChannel()(chan string, chan interface{}) {
 	return uc.udpsend_ch, uc.udprecv_ch
 }
 //
@@ -121,12 +121,12 @@ func New() *UdpControll {
 		senderStart : senderStart,
 		receiverStart : receiverStart,
        		udpsend_ch : make(chan string),
-        	udprecv_ch : make(chan string),
+        	udprecv_ch : make(chan interface{}),
 	}
 }
 
 //
-func (uc *UdpControll) Run(sc chan string, rc chan string) {
+func (uc *UdpControll) Run(sc chan string, rc chan interface{}) {
 	go uc.ReceiverStart()
 	go uc.SenderStart()
 }

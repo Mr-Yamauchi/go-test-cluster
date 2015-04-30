@@ -35,11 +35,11 @@ type Controll struct {
 	base.BaseControll
 	//
 	status       consts.StatusId
-	status_ch    chan int
+	status_ch    chan interface{}
 	udpSend_ch   chan string
-	udpRecv_ch   chan string
+	udpRecv_ch   chan interface{}
 	ipcSrvRecv_ch   chan interface{}
-	ipcClient_ch chan string
+	ipcClient_ch chan interface{}
 	//
 	runFunc       RunFunc
 	udpController udp.UdpController
@@ -61,7 +61,7 @@ func (ct *Controll) Init(
 	// Make Chanel
 	ct.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
-	ct.status_ch = make(chan int, 2)
+	ct.status_ch = make(chan interface{}, 2)
 	// Get map(for clients)
 	ct.clients = ipcsv.GetClientMap()
 

@@ -22,6 +22,10 @@ type IpcTypeMessageHandler struct {
 	Types   int
 	Handler func(*Controll, *ipcs.ClientConnect, []byte, mes.MessageCommon)
 }
+type ChannelHandlerList struct {
+	Ch	chan interface{}	
+	Handler func(ct *Controll, data interface{})
+}
 //
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -30,29 +34,33 @@ func init() {
 
 //
 func _processRun(ct *Controll) (wait int) {
+
+        var _channelList = []*ChannelHandlerList {
+		{ Ch : ct.status_ch, Handler : _processStatus },
+		{ Ch : ct.ipcSrvRecv_ch, Handler : _processIpcSrvMessage },
+		{ Ch : ct.ipcClient_ch, Handler : _processIpcClientMessage },
+		{ Ch : ct.udpRecv_ch,  Handler : _processUdpMessage },
+	}
+
 	//
 	go func() {
 		for {
-			select {
-			case _sig_ch := <-ct.Signal_ch:
-				fmt.Println("SIGNALED")
-				switch _sig_ch {
-				case syscall.SIGTERM:
-					ct.Exit_ch <- 1
-				case syscall.SIGCHLD:
-					fmt.Println("CHILD EXIT")
-				default:
-					ct.Exit_ch <- 1
+			for idx := 0; idx < len(_channelList); idx ++ {
+				select {
+				case _sig_ch := <-ct.Signal_ch:
+					fmt.Println("SIGNALED")
+					switch _sig_ch {
+					case syscall.SIGTERM:
+						ct.Exit_ch <- 1
+					case syscall.SIGCHLD:
+						fmt.Println("CHILD EXIT")
+					default:
+						ct.Exit_ch <- 1
+					}
+				case _ch := <- _channelList[idx].Ch :
+					_channelList[idx].Handler(ct, _ch)
+				default :
 				}
-			case _sts_ch := <-ct.status_ch:
-				_processStatus(ct, _sts_ch)
-			case _ipc_ch := <-ct.ipcSrvRecv_ch:
-				_processIpcSrvMessage(ct, _ipc_ch)
-			case _ipcClient_ch := <-ct.ipcClient_ch:
-				_processIpcClientMessage(ct, _ipcClient_ch)
-			case _udp_ch := <-ct.udpRecv_ch:
-				_processUdpMessage(nil, _udp_ch)
-			default:
 			}
 		}
 	}()
@@ -105,12 +113,11 @@ func _processUdpMessage(ct *Controll, data interface{}) {
 }
 
 //
-var _ipcTypeMessageFunc = []*IpcTypeMessageHandler{
-	{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
-}
-
-//
 func _processIpcSrvMessage(ct *Controll, data interface{}) {
+	//
+	var _ipcTypeMessageFunc = []*IpcTypeMessageHandler{
+		{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
+	}
 	//
 	fmt.Println("IPC RECEIVE(from Client)")
 
