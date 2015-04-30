@@ -17,6 +17,14 @@ import (
 )
 
 //
+type IpcTypeMessageHandler struct {
+        Types   int        
+	Handler func(*Rmanager, *ipcs.ClientConnect, []byte, mes.MessageCommon)
+}
+
+type ProcessMessageFunc func(ct *Rmanager, data interface{})
+
+//
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	runtime.LockOSThread()
@@ -40,7 +48,7 @@ func _processRun(ct *Rmanager) (wait int) {
 				}
 			case _ipc_ch := <-ct.ipcSrvRecv_ch:
 				fmt.Println("IPC RECEIVE")
-				ct.processIpcSrvMessageHandler(ct, _ipc_ch)
+				_processIpcSrvMessage(ct, _ipc_ch)
 			default:
 			}
 		}
@@ -51,7 +59,7 @@ func _processRun(ct *Rmanager) (wait int) {
 }
 
 //
-func _message_hello_handler(ct *Rmanager, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
+func _messageHelloHandler(ct *Rmanager, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
 	var ms mes.MessageHello
 	//Recv HelloMessage Unmarshal
 	if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -83,7 +91,7 @@ func _message_hello_handler(ct *Rmanager, client *ipcs.ClientConnect, recv_mes [
 }
 
 //
-func _message_resource_handler(ct *Rmanager, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
+func _messageResourceHandler(ct *Rmanager, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
 	var ms mes.MessageResourceControllRequest
 	//Recv MessageResourceControll Unmarshal
 	if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -107,6 +115,12 @@ func _message_resource_handler(ct *Rmanager, client *ipcs.ClientConnect, recv_me
 }
 
 //
+var _ipcTypeMessageFunc = []*IpcTypeMessageHandler {
+        {Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
+	{Types: mes.MESSAGE_ID_RESOUCE, Handler: _messageResourceHandler},
+}
+
+//
 func _processIpcSrvMessage(ct *Rmanager, data interface{}) {
 	//
 	switch _v := data.(type) {
@@ -120,9 +134,9 @@ func _processIpcSrvMessage(ct *Rmanager, data interface{}) {
 		}
 		//
 		var _processed bool = false
-		for i := 0; i < len(ct.ipcMessageHandler); i++ {
-			if ct.ipcMessageHandler[i].Types == _head.Header.Types {
-				ct.ipcMessageHandler[_head.Header.Types].Handler(ct, _v, _recv_mes, _head)
+		for i := 0; i < len(_ipcTypeMessageFunc); i++ {
+			if _ipcTypeMessageFunc[i].Types == _head.Header.Types {
+				_ipcTypeMessageFunc[_head.Header.Types].Handler(ct, _v, _recv_mes, _head)
 				_processed = true
 				break
 			}
@@ -156,13 +170,6 @@ func _initialize()*Rmanager {
 		_processRun,
 		//
 		ipcs.New("/tmp/rmanager.sock"),
-		//
-		_processIpcSrvMessage,
-		//
-		[]*IpcTypeMessageHandler{
-			{Types: mes.MESSAGE_ID_HELLO, Handler: _message_hello_handler},
-			{Types: mes.MESSAGE_ID_RESOUCE, Handler: _message_resource_handler},
-		},
 	)
 	
 	return _cn

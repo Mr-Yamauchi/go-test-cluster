@@ -2,10 +2,10 @@
 package main
 
 import (
-	base "../base"
-	ipcs "../ipcs"
-	mes "../message"
+	"../base"
+	"../ipcs"
 	"log"
+	"syscall"
 )
 
 //
@@ -16,14 +16,7 @@ type IpcServerAndUdp interface {
 }
 
 //
-type IpcTypeMessageHandler struct {
-	Types   int
-	Handler func(*Rmanager, *ipcs.ClientConnect, []byte, mes.MessageCommon)
-}
-
-//
 type RunFunc func(ct *Rmanager) int
-type ProcessMessageFunc func(ct *Rmanager, data interface{})
 
 //
 type Rmanager struct {
@@ -35,16 +28,14 @@ type Rmanager struct {
 	ipcServer ipcs.IpcServer
 	//
 	runFunc                  RunFunc
-	processIpcSrvMessageHandler ProcessMessageFunc
-	ipcMessageHandler        []*IpcTypeMessageHandler
 	//
 	clients map[int]*ipcs.ClientConnect
 }
 
 //
-func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer, ipcfn ProcessMessageFunc, ipcms []*IpcTypeMessageHandler) int {
+func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 	// Make Chanel
-	ct.InitBase()
+	ct.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
 	// Get map(for clients)
 	ct.clients = ipcsv.GetClientMap()
@@ -53,10 +44,6 @@ func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer, ipcfn ProcessMessa
 	//
 	ct.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
 	ct.ipcServer = ipcsv
-
-	// Set IPC Message Handler
-	ct.processIpcSrvMessageHandler = ipcfn
-	ct.ipcMessageHandler = ipcms
 
 	// Start IPCServer
 	go ct.ipcServer.Run()
@@ -84,10 +71,10 @@ func (ct *Rmanager) Terminate() int {
 }
 
 //
-func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer, ipcfn ProcessMessageFunc, ipcms []*IpcTypeMessageHandler) *Rmanager {
+func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer) *Rmanager {
 	_cn := new(Rmanager)
 
-	_cn.Init(runfn, ipcsv, ipcfn, ipcms)
+	_cn.Init(runfn, ipcsv)
 
 	return _cn
 }

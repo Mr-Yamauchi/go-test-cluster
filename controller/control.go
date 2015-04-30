@@ -1,20 +1,16 @@
 package main
 
 import (
-	base "../base"
+	"../base"
 	"../consts"
-	ipcc "../ipcc"
-	ipcs "../ipcs"
+	"../ipcc"
+	"../ipcs"
 	mes "../message"
-	udp "../udp"
+	"../udp"
 	"log"
+	"syscall"
 )
 
-//
-type IpcTypeMessageHandler struct {
-	Types   int
-	Handler func(*Controll, *ipcs.ClientConnect, []byte, mes.MessageCommon)
-}
 
 //
 type IpcServerAndUdp interface {
@@ -32,9 +28,6 @@ type Controller interface {
 //
 //
 type RunFunc func(ct *Controll) int
-type ProcessMessageFunc func(ct *Controll, data interface{})
-type ProcessStatusFunc func(ct *Controll, data consts.StatusId) int
-type ProcessIpcClientMessageFunc func(ct *Controll, data string)
 
 //
 type Controll struct {
@@ -42,7 +35,7 @@ type Controll struct {
 	base.BaseControll
 	//
 	status       consts.StatusId
-	status_ch    chan consts.StatusId
+	status_ch    chan int
 	udpSend_ch   chan string
 	udpRecv_ch   chan string
 	ipcSrvRecv_ch   chan interface{}
@@ -53,32 +46,22 @@ type Controll struct {
 	ipcServer     ipcs.IpcServer
 	//
 	//
-	processStatusHander     ProcessStatusFunc
-	processUdpMessageHander ProcessMessageFunc
-	processIpcSrvMessageHander ProcessMessageFunc
-	ipcTypeMessageHandler       []*IpcTypeMessageHandler
-	//
 	clients map[int]*ipcs.ClientConnect
 	//rmanager connect info
 	rmanConnect *ipcc.IpcClientController
-	processIpcClintMessageHandler ProcessIpcClientMessageFunc
 }
 
 //
 func (ct *Controll) Init(
 	runfn RunFunc,
 	udpc udp.UdpController,
-	ipcsv ipcs.IpcServer,
-	stsfn ProcessStatusFunc,
-	udpfn ProcessMessageFunc,
-	ipcfn ProcessMessageFunc,
-	ipcms []*IpcTypeMessageHandler) int {
+	ipcsv ipcs.IpcServer ) int {
 	//
 	ct.status = consts.STARTUP
 	// Make Chanel
-	ct.InitBase()
+	ct.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
-	ct.status_ch = make(chan consts.StatusId, 2)
+	ct.status_ch = make(chan int, 2)
 	// Get map(for clients)
 	ct.clients = ipcsv.GetClientMap()
 
@@ -92,13 +75,6 @@ func (ct *Controll) Init(
 	// Set IpcServer Controller
 	ct.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
 	ct.ipcServer = ipcsv
-
-	//Set Status Handler
-	ct.processStatusHander = stsfn
-	//Set UDP/IPC Message Handler
-	ct.processUdpMessageHander = udpfn
-	ct.processIpcSrvMessageHander = ipcfn
-	ct.ipcTypeMessageHandler = ipcms
 
 	//Start Udp and IPCServer
 	go ct.udpController.Run(ct.udpSend_ch, ct.udpRecv_ch)
@@ -161,14 +137,10 @@ func (ct *Controll) SendUdpMessage(mes string) int {
 func NewControll(
 	runfn RunFunc,
 	udpc udp.UdpController,
-	ipcsv ipcs.IpcServer,
-	stsfn ProcessStatusFunc,
-	udpfn ProcessMessageFunc,
-	ipcfn ProcessMessageFunc,
-	ipcms []*IpcTypeMessageHandler) *Controll {
+	ipcsv ipcs.IpcServer) *Controll {
 	//
 	_cn := new(Controll)
-	_cn.Init(runfn, udpc, ipcsv, stsfn, udpfn, ipcfn, ipcms)
+	_cn.Init(runfn, udpc, ipcsv)
 	//
 	return _cn
 }

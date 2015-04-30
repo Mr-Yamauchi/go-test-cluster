@@ -18,6 +18,11 @@ import (
 )
 
 //
+type IpcTypeMessageHandler struct {
+	Types   int
+	Handler func(*Controll, *ipcs.ClientConnect, []byte, mes.MessageCommon)
+}
+//
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	runtime.LockOSThread()
@@ -40,15 +45,13 @@ func _processRun(ct *Controll) (wait int) {
 					ct.Exit_ch <- 1
 				}
 			case _sts_ch := <-ct.status_ch:
-				fmt.Println("STATUS CHANGE")
-				ct.processStatusHander(ct, _sts_ch)
+				_processStatus(ct, _sts_ch)
 			case _ipc_ch := <-ct.ipcSrvRecv_ch:
-				fmt.Println("IPC RECEIVE(from Client)")
-				ct.processIpcSrvMessageHander(ct, _ipc_ch)
+				_processIpcSrvMessage(ct, _ipc_ch)
 			case _ipcClient_ch := <-ct.ipcClient_ch:
-				ct.processIpcClintMessageHandler(ct, _ipcClient_ch)
+				_processIpcClientMessage(ct, _ipcClient_ch)
 			case _udp_ch := <-ct.udpRecv_ch:
-				ct.processUdpMessageHander(nil, _udp_ch)
+				_processUdpMessage(nil, _udp_ch)
 			default:
 			}
 		}
@@ -102,8 +105,15 @@ func _processUdpMessage(ct *Controll, data interface{}) {
 }
 
 //
+var _ipcTypeMessageFunc = []*IpcTypeMessageHandler{
+	{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
+}
+
+//
 func _processIpcSrvMessage(ct *Controll, data interface{}) {
 	//
+	fmt.Println("IPC RECEIVE(from Client)")
+
 	switch _v := data.(type) {
 	case *ipcs.ClientConnect:
 		fmt.Println("RECV(ClientConnect) : " + string(_v.Message))
@@ -115,9 +125,9 @@ func _processIpcSrvMessage(ct *Controll, data interface{}) {
 		}
 		//
 		var _processed bool = false
-		for i := 0; i < len(ct.ipcTypeMessageHandler); i++ {
-			if ct.ipcTypeMessageHandler[i].Types == _head.Header.Types {
-				ct.ipcTypeMessageHandler[_head.Header.Types].Handler(ct, _v, _recv_mes, _head)
+		for i := 0; i < len(_ipcTypeMessageFunc); i++ {
+			if _ipcTypeMessageFunc[i].Types == _head.Header.Types {
+				_ipcTypeMessageFunc[_head.Header.Types].Handler(ct, _v, _recv_mes, _head)
 				_processed = true
 				break
 			}
@@ -134,43 +144,49 @@ func _processIpcSrvMessage(ct *Controll, data interface{}) {
 	}
 }
 
-func _processStatus(ct *Controll, data consts.StatusId) int {
-	switch data {
-	case consts.STARTUP:
-		ct.status = consts.ALL_CLIENT_UP
+func _processStatus(ct *Controll, data interface{}) {
+	switch _v := data.(type) {
+	case int:
+		fmt.Println(consts.StatusId(_v))
+		switch _v {
+		case consts.STARTUP:
+			ct.status = consts.ALL_CLIENT_UP
 
-		/* TESET */
-		//Make Hello Request.
-		_request := mes.MessageHello{
-			Header: mes.MessageHeader{
-				Destination_id: int(consts.RMANAGER_ID),
-				Source_id:      int(consts.CONTROLLER_ID),
-				Types:          int(mes.MESSAGE_ID_HELLO),
-			},
-			Pid:     os.Getpid(),
-			Message: "HELLO",
+			/* TESET */
+			//Make Hello Request.
+			_request := mes.MessageHello{
+				Header: mes.MessageHeader{
+					Destination_id: int(consts.RMANAGER_ID),
+					Source_id:      int(consts.CONTROLLER_ID),
+					Types:          int(mes.MESSAGE_ID_HELLO),
+				},
+				Pid:     os.Getpid(),
+				Message: "HELLO",
+			}
+			//Send Hello Request.
+			ct.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+		case consts.ALL_CLIENT_UP:
+		case consts.LOAD_RESOURCE_SETTING:
+		case consts.CONTROL_RESOURCE:
+			ct._resourceControl()
+		case consts.PENDING:
+		case consts.OPERATIONAL:
 		}
-		//Send Hello Request.
-		ct.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
-	case consts.ALL_CLIENT_UP:
-	case consts.LOAD_RESOURCE_SETTING:
-	case consts.CONTROL_RESOURCE:
-		ct._resourceControl()
-	case consts.PENDING:
-	case consts.OPERATIONAL:
+	default : 
 	}
-	return 0
 }
 //
-func _processIpcClientMessage(ct *Controll, data string) {
-	_recv_mes := []byte(data)
-	var _head mes.MessageCommon
+func _processIpcClientMessage(ct *Controll, data interface{}) {
+	switch _v := data.(type) {
+	case string:
+		_recv_mes := []byte(_v)
+		var _head mes.MessageCommon
 
-	if err := json.Unmarshal(_recv_mes, &_head); err != nil {
-		fmt.Println("unmarshal ERROR" + err.Error())
-	}
+		if err := json.Unmarshal(_recv_mes, &_head); err != nil {
+			fmt.Println("unmarshal ERROR" + err.Error())
+		}
 
-	switch _head.Header.Types {
+		switch _head.Header.Types {
 		case mes.MESSAGE_ID_RESOUCE_RESPONSE :
 			var ms mes.MessageResourceControllResponse
 			if err := json.Unmarshal(_recv_mes, &ms); err != nil {
@@ -183,6 +199,8 @@ func _processIpcClientMessage(ct *Controll, data string) {
 			ct.status_ch <-consts.CONTROL_RESOURCE
 		default:
 			fmt.Println("IPC RECEIVE from Server(3) :", data)
+		}
+	default : 
 	}
 }
 //
@@ -203,21 +221,11 @@ func _initialize()(*Controll, *ChildControll) {
 		//
 		udp.New(),
 		ipcs.New("/tmp/controller.sock"),
-		//
-		_processStatus,
-		//
-		_processUdpMessage,
-		_processIpcSrvMessage,
-		//
-		[]*IpcTypeMessageHandler{
-			{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
-		},
 	)
 
 	// Rmanager Connect
 	_cn.rmanConnect = ipcc.New("/tmp/rmanager.sock")
 	_cn.rmanConnect.Connect()
-	_cn.processIpcClintMessageHandler = _processIpcClientMessage
 	_cn.ipcClient_ch = _cn.rmanConnect.GetReceiveChannel()
 
 	// Create Child Control 

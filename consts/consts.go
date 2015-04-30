@@ -38,3 +38,25 @@ const (
 	PENDING
 	OPERATIONAL
 )
+
+//
+func (s StatusId) String() string {
+	var _ss string
+	switch s {
+	case STARTUP :
+		_ss = "STARTUP"
+	case ALL_CLIENT_UP :
+		_ss = "ALL_CLIENT_UP"
+	case LOAD_RESOURCE_SETTING :
+		_ss = "LOAD_RESOURCE_SETTING"
+	case CONTROL_RESOURCE :
+		_ss = "CONTROL_RESOURCE"
+	case PENDING :
+		_ss = "PENDING"
+	case OPERATIONAL :
+		_ss = "OPERAIONAL"
+	default : 
+		_ss = ""
+	}
+	return _ss
+}
