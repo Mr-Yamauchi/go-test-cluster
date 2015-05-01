@@ -24,7 +24,6 @@ type Controller interface {
 	IpcServerAndUdp
 	SendUdpMessage(mes string) int
 }
-
 //
 //
 type RunFunc func(ct *Controll) int
@@ -83,6 +82,7 @@ func (ct *Controll) Init(
 	return 0
 
 }
+
 //
 func (ct *Controll) Run() int {
 	if ct.runFunc != nil {

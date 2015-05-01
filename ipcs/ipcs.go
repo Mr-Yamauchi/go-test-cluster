@@ -2,6 +2,7 @@ package ipcs
 
 import (
 	consts "../consts"
+        mes "../message"
 	"log"
 	"net"
 	"os"
@@ -14,10 +15,16 @@ type IpcServer interface {
 	SendIpcToClient(clients map[int]*ClientConnect, dest int, data []byte) int
 	Run()
 }
+
 type IpcServerController struct {
 	sockFiles string
 	ipcrecv_ch chan interface{}
 	
+}
+
+type IpcTypeMessageHandler struct {
+        Types   int
+        Handler func(interface{}, *ClientConnect, []byte, mes.MessageCommon)
 }
 
 //
