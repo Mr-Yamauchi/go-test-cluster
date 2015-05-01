@@ -8,7 +8,7 @@ import (
 //
 type ChannelHandlerData struct {
         Ch      chan interface{}
-        Handler func(cit interface{}, data interface{})
+        handler func(cit interface{}, data interface{})
 }
 
 var ChannelList []*ChannelHandlerData
@@ -22,4 +22,14 @@ func SetChannelHandler(list []*ChannelHandlerData, ct base.LockUnlocker,  data *
         _channelList := append(list, data)
 
         return _channelList
+}
+
+//
+func (cc ChannelHandlerData) Exec(cit interface{}, data interface{}) {
+	cc.handler(cit, data)
+}
+
+//
+func New(ch chan interface{}, fn func(cit interface{}, data interface{}))(*ChannelHandlerData){
+	return & ChannelHandlerData { Ch : ch , handler : fn } 
 }

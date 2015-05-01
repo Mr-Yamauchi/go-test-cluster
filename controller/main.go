@@ -43,7 +43,7 @@ func _processRun(ct *Controll, chData []*chhandler.ChannelHandlerData) (wait int
 						ct.Exit_ch <- 1
 					}
 				case _ch := <- chData[idx].Ch :
-					chData[idx].Handler(ct, _ch)
+					chData[idx].Exec(ct, _ch)
 				default :
 				}
 			}
@@ -255,13 +255,13 @@ func _initialize()(*Controll, *ChildControll) {
 
 	// Set Channel Handler
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 & chhandler.ChannelHandlerData{ Ch : _cn.status_ch, Handler : _processStatus } ) 
+				 chhandler.New(_cn.status_ch, _processStatus ))
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 & chhandler.ChannelHandlerData{ Ch : _cn.ipcSrvRecv_ch, Handler : _processIpcSrvMessage } ) 
+				 chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage )) 
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 & chhandler.ChannelHandlerData{ Ch : _cn.ipcClient_ch, Handler : _processIpcClientMessage } ) 
+				 chhandler.New( _cn.ipcClient_ch, _processIpcClientMessage )) 
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 & chhandler.ChannelHandlerData{ Ch : _cn.udpRecv_ch,  Handler : _processUdpMessage } ) 
+				 chhandler.New( _cn.udpRecv_ch, _processUdpMessage ))
 
 	return _cn, _ch
 }

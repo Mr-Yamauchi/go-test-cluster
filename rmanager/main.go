@@ -43,7 +43,7 @@ func _processRun(ct *Rmanager, chData []*chhandler.ChannelHandlerData) (wait int
 						ct.Exit_ch <- 1
 					}
 				case _ch := <- chData[idx].Ch :
-					chData[idx].Handler(ct, _ch)
+					chData[idx].Exec(ct, _ch)
 				default:
 				}
 			}
@@ -176,7 +176,7 @@ func _initialize()*Rmanager {
 
 	// Set Channel Handler
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 & chhandler.ChannelHandlerData { Ch : _cn.ipcSrvRecv_ch, Handler : _processIpcSrvMessage } )
+				  chhandler.New( _cn.ipcSrvRecv_ch, _processIpcSrvMessage ))
 		
 	return _cn
 }
