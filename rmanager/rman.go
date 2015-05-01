@@ -3,6 +3,7 @@ package main
 
 import (
 	"../base"
+	"../chhandler"
 	"../ipcs"
 	"log"
 	"syscall"
@@ -16,7 +17,7 @@ type IpcServerAndUdp interface {
 }
 
 //
-type RunFunc func(ct *Rmanager) int
+type RunFunc func(ct *Rmanager, list []*chhandler.ChannelHandlerData) int
 
 //
 type Rmanager struct {
@@ -53,9 +54,9 @@ func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 }
 
 //
-func (ct *Rmanager) Run() int {
+func (ct *Rmanager) Run(list []*chhandler.ChannelHandlerData) int {
 	if ct.runFunc != nil {
-		ct.runFunc(ct)
+		ct.runFunc(ct, list)
 	}
 	return 0
 }
@@ -77,4 +78,12 @@ func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer) *Rmanager {
 	_cn.Init(runfn, ipcsv)
 
 	return _cn
+}
+//
+func _isRmanager(ci interface{})(*Rmanager) {
+	switch ct := ci.(type) {
+		case *Rmanager : return ct
+		default :
+	}
+	return nil
 }

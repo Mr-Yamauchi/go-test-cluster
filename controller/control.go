@@ -2,6 +2,7 @@ package main
 
 import (
 	"../base"
+	"../chhandler"
 	"../consts"
 	"../ipcc"
 	"../ipcs"
@@ -26,7 +27,7 @@ type Controller interface {
 }
 //
 //
-type RunFunc func(ct *Controll) int
+type RunFunc func(ct *Controll, list []*chhandler.ChannelHandlerData) int
 
 //
 type Controll struct {
@@ -84,9 +85,9 @@ func (ct *Controll) Init(
 }
 
 //
-func (ct *Controll) Run() int {
+func (ct *Controll) Run(list []*chhandler.ChannelHandlerData) int {
 	if ct.runFunc != nil {
-		ct.runFunc(ct)
+		ct.runFunc(ct, list)
 	}
 	return 0
 }
@@ -143,4 +144,12 @@ func NewControll(
 	_cn.Init(runfn, udpc, ipcsv)
 	//
 	return _cn
+}
+//
+func _isControll(ci interface{})(*Controll){
+	switch ct := ci.(type) {
+		case *Controll : return ct
+		default :
+	}
+	return nil
 }

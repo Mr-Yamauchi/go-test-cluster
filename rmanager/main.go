@@ -24,13 +24,13 @@ func init() {
 }
 
 //
-func _processRun(ct *Rmanager) (wait int) {
+func _processRun(ct *Rmanager, chData []*chhandler.ChannelHandlerData) (wait int) {
 	
 	//
 	go func() {
 		for {
 			ct.Lock()
-			for idx := 0; idx < len(chhandler.ChannelList); idx ++ {
+			for idx := 0; idx < len(chData); idx ++ {
 				select {
 				case _sig_ch := <-ct.Signal_ch :
 					fmt.Println("SIGNALED")
@@ -42,8 +42,8 @@ func _processRun(ct *Rmanager) (wait int) {
 					default:
 						ct.Exit_ch <- 1
 					}
-				case _ch := <- chhandler.ChannelList[idx].Ch :
-					chhandler.ChannelList[idx].Handler(ct, _ch)
+				case _ch := <- chData[idx].Ch :
+					chData[idx].Handler(ct, _ch)
 				default:
 				}
 			}
@@ -57,8 +57,7 @@ func _processRun(ct *Rmanager) (wait int) {
 
 //
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
-	switch ct := ci.(type) {
-	case *Rmanager : 	
+	if ct := _isRmanager(ci); ct != nil { 
 		var ms mes.MessageHello
 		//Recv HelloMessage Unmarshal
 		if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -87,15 +86,12 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 		//
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
 		//
-	default:
 	}
 }
 
 //
 func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
-
-	switch ct := ci.(type) {
-	case *Rmanager : 	
+	if ct := _isRmanager(ci); ct != nil {
 		var ms mes.MessageResourceControllRequest
 		//Recv MessageResourceControll Unmarshal
 		if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -116,15 +112,13 @@ func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_me
 		//
 		//
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
-	default :
 	}
 }
 
 //
 func _processIpcSrvMessage(ci interface{}, data interface{}) {
 	//
-	switch ct := ci.(type) {
-	case *Rmanager :
+	if ct := _isRmanager(ci); ct != nil {
 		var _ipcTypeMessageFunc = []*ipcs.IpcTypeMessageHandler {
         		{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
 			{Types: mes.MESSAGE_ID_RESOUCE, Handler: _messageResourceHandler},
@@ -158,7 +152,6 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 		default:
 			log.Println("unknown Data RECV(default)")
 		}
-	default : 
 	}
 }
 
@@ -198,7 +191,7 @@ func main() {
 	_cn := _initialize()
 
 	// Main Loop Running
-	_cn.Run()
+	_cn.Run(chhandler.ChannelList)
 
 	// Finish
 	_terminate(_cn)

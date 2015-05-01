@@ -25,12 +25,12 @@ func init() {
 }
 
 //
-func _processRun(ct *Controll) (wait int) {
+func _processRun(ct *Controll, chData []*chhandler.ChannelHandlerData) (wait int) {
 	//
 	go func() {
 		for {
 			ct.Lock()
-			for idx := 0; idx < len(chhandler.ChannelList); idx ++ {
+			for idx := 0; idx < len(chData); idx ++ {
 				select {
 				case _sig_ch := <-ct.Signal_ch:
 					fmt.Println("SIGNALED")
@@ -42,8 +42,8 @@ func _processRun(ct *Controll) (wait int) {
 					default:
 						ct.Exit_ch <- 1
 					}
-				case _ch := <- chhandler.ChannelList[idx].Ch :
-					chhandler.ChannelList[idx].Handler(ct, _ch)
+				case _ch := <- chData[idx].Ch :
+					chData[idx].Handler(ct, _ch)
 				default :
 				}
 			}
@@ -58,9 +58,8 @@ func _processRun(ct *Controll) (wait int) {
 
 //
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
-
-	switch ct := ci.(type) {
-	case *Controll :
+	
+	if ct := _isControll(ci); ct != nil {
 		var ms mes.MessageHello
 		//Recv HelloMessage Unmarshal
 		if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -89,7 +88,6 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 		//
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
 		//
-	default : 
 	}
 }
 
@@ -97,23 +95,21 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 //
 func _processUdpMessage(ci interface{}, data interface{}) {
 	//
-	switch ci.(type) {
-	case *Controll : 
+	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
 		case string:
 			fmt.Println("UDP RECEIVE : " + _v)
 		default:
 		}
-	default:
 	}
+	
 		
 }
 
 //
 func _processIpcSrvMessage(ci interface{}, data interface{}) {
 	//
-	switch ct := ci.(type) {
-	case *Controll : 
+	if ct := _isControll(ci); ct != nil {
 		//
 		var _ipcTypeMessageFunc = []*ipcs.IpcTypeMessageHandler{
 			{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
@@ -149,14 +145,12 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 		default:
 			log.Println("unknown Data RECV(default)")
 		}
-	default:
 	}
 }
 
 func _processStatus(ci interface{}, data interface{}) {
 	//
-	switch ct := ci.(type) {
-	case *Controll : 
+	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
 		case int:
 			fmt.Println(consts.StatusId(_v))
@@ -186,14 +180,12 @@ func _processStatus(ci interface{}, data interface{}) {
 			}
 		default : 
 		}
-	default : 
 	}
 }
 //
 func _processIpcClientMessage(ci interface{}, data interface{}) {
 	//
-	switch ct := ci.(type) {
-	case *Controll : 
+	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
 		case string:
 			_recv_mes := []byte(_v)
@@ -219,7 +211,6 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 			}
 		default : 
 		}
-	default:
 	}
 }
 //
@@ -288,7 +279,7 @@ func main() {
 	_cn.SendUdpMessage(fmt.Sprintf("BBB"))
 
 	// Main Loop Running
-	_cn.Run()
+	_cn.Run(chhandler.ChannelList)
 
 	// Finish 
 	_terminate(_cn, _ch)
