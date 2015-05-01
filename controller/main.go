@@ -18,12 +18,6 @@ import (
 	"syscall"
 )
 
-
-type _channelHandlerData struct {
-	ch	chan interface{}	
-	handler func(ct *Controll, data interface{})
-}
-
 //
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
