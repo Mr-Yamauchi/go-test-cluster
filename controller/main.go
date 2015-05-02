@@ -25,12 +25,12 @@ func init() {
 }
 
 //
-func _processRun(ct *Controll, chData []*chhandler.ChannelHandlerData) (wait int) {
+func _processRun(ct *Controll, chData chhandler.ChannelHandler) (wait int) {
 	//
 	go func() {
 		for {
 			ct.Lock()
-			for idx := 0; idx < len(chData); idx ++ {
+			for idx := 0; idx < chData.GetLen(); idx ++ {
 				select {
 				case _sig_ch := <-ct.Signal_ch:
 					fmt.Println("SIGNALED")
@@ -42,8 +42,8 @@ func _processRun(ct *Controll, chData []*chhandler.ChannelHandlerData) (wait int
 					default:
 						ct.Exit_ch <- 1
 					}
-				case _ch := <- chData[idx].GetCh() :
-					chData[idx].Exec(ct, _ch)
+				case _ch := <- chData.GetCh(idx) :
+					chData.Exec(idx, ct, _ch)
 				default :
 				}
 			}

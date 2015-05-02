@@ -27,7 +27,7 @@ type Controller interface {
 }
 //
 //
-type RunFunc func(ct *Controll, list []*chhandler.ChannelHandlerData) int
+type RunFunc func(ct *Controll, list chhandler.ChannelHandler) int
 
 //
 type Controll struct {
@@ -85,7 +85,7 @@ func (ct *Controll) Init(
 }
 
 //
-func (ct *Controll) Run(list []*chhandler.ChannelHandlerData) int {
+func (ct *Controll) Run(list chhandler.ChannelHandler) int {
 	if ct.runFunc != nil {
 		ct.runFunc(ct, list)
 	}

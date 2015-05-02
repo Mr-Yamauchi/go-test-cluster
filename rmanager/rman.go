@@ -17,7 +17,7 @@ type IpcServerAndUdp interface {
 }
 
 //
-type RunFunc func(ct *Rmanager, list []*chhandler.ChannelHandlerData) int
+type RunFunc func(ct *Rmanager, list chhandler.ChannelHandler) int
 
 //
 type Rmanager struct {
@@ -54,7 +54,7 @@ func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 }
 
 //
-func (ct *Rmanager) Run(list []*chhandler.ChannelHandlerData) int {
+func (ct *Rmanager) Run(list chhandler.ChannelHandler) int {
 	if ct.runFunc != nil {
 		ct.runFunc(ct, list)
 	}

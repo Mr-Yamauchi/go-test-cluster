@@ -11,13 +11,21 @@ type ChannelHandlerData struct {
         handler func(cit interface{}, data interface{})
 }
 
-var ChannelList []*ChannelHandlerData
+type ChannelLists []*ChannelHandlerData
+
+var ChannelList ChannelLists
+
+type ChannelHandler interface {
+	GetLen()(int)
+	Exec(idx int, cit interface{}, data interface{}) 
+	GetCh(idx int)(chan interface{})
+}
 //
-func SetChannelHandler(list []*ChannelHandlerData, ct base.LockUnlocker,  data *ChannelHandlerData )([]*ChannelHandlerData) {
+func SetChannelHandler(list ChannelLists, ct base.LockUnlocker,  data *ChannelHandlerData )(ChannelLists) {
         ct.Lock()
         defer ct.Unlock()
         if list == nil {
-                list = make([]*ChannelHandlerData, 0)
+                list = make(ChannelLists, 0)
         }
         _channelList := append(list, data)
 
@@ -25,13 +33,21 @@ func SetChannelHandler(list []*ChannelHandlerData, ct base.LockUnlocker,  data *
 }
 
 //
-func (cc ChannelHandlerData) Exec(cit interface{}, data interface{}) {
-	cc.handler(cit, data)
+func (cc ChannelLists) Exec(idx int, cit interface{}, data interface{}) {
+	cc[idx].handler(cit,data)
+	
 }
 
-func (cc ChannelHandlerData) GetCh()(chan interface{}) {
-	return cc.Ch
+//
+func (cc ChannelLists) GetCh(idx int)(chan interface{}) {
+	return cc[idx].Ch
 }
+
+//
+func (cc ChannelLists) GetLen()(int) {
+	return len(cc)
+}
+
 //
 func New(ch chan interface{}, fn func(cit interface{}, data interface{}))(*ChannelHandlerData){
 	return & ChannelHandlerData { Ch : ch , handler : fn } 
