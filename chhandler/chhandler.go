@@ -29,7 +29,12 @@ func (cc ChannelHandlerData) Exec(cit interface{}, data interface{}) {
 	cc.handler(cit, data)
 }
 
+func (cc ChannelHandlerData) GetCh()(chan interface{}) {
+	return cc.Ch
+}
 //
 func New(ch chan interface{}, fn func(cit interface{}, data interface{}))(*ChannelHandlerData){
 	return & ChannelHandlerData { Ch : ch , handler : fn } 
 }
+
+//

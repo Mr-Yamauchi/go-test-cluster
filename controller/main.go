@@ -42,7 +42,7 @@ func _processRun(ct *Controll, chData []*chhandler.ChannelHandlerData) (wait int
 					default:
 						ct.Exit_ch <- 1
 					}
-				case _ch := <- chData[idx].Ch :
+				case _ch := <- chData[idx].GetCh() :
 					chData[idx].Exec(ct, _ch)
 				default :
 				}
