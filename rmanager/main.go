@@ -32,15 +32,15 @@ func _processRun(ct *Rmanager, chData chhandler.ChannelHandler) (wait int) {
 			ct.Lock()
 			for idx := 0; idx < chData.GetLen(); idx ++ {
 				select {
-				case _sig_ch := <-ct.Signal_ch :
+				case _sig_ch := <-ct.GetSignalChannel() :
 					fmt.Println("SIGNALED")
 					switch _sig_ch {
 					case syscall.SIGTERM:
-						ct.Exit_ch <- 1
+						ct.GetExitChannel() <- 1
 					case syscall.SIGCHLD:
 						fmt.Println("CHILD EXIT")
 					default:
-						ct.Exit_ch <- 1
+						ct.GetExitChannel() <- 1
 					}
 				case _ch := <- chData.GetCh(idx) :
 					chData.Exec(idx, ct, _ch)
