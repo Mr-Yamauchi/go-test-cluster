@@ -25,38 +25,6 @@ func init() {
 }
 
 //
-func _processRun(ct *Controll, chData chhandler.ChannelHandler) (wait int) {
-	//
-	go func() {
-		for {
-			ct.Lock()
-			for idx := 0; idx < chData.GetLen(); idx ++ {
-				select {
-				case _sig_ch := <-ct.GetSignalChannel():
-					fmt.Println("SIGNALED")
-					switch _sig_ch {
-					case syscall.SIGTERM:
-						ct.GetExitChannel() <- 1
-					case syscall.SIGCHLD:
-						fmt.Println("CHILD EXIT")
-					default:
-						ct.GetExitChannel() <- 1
-					}
-				case _ch := <- chData.GetCh(idx) :
-					chData.Exec(idx, ct, _ch)
-				default :
-				}
-			}
-			ct.Unlock()
-		}
-	}()
-	ct.status_ch <-consts.STARTUP
-	wait = <-ct.Exit_ch
-
-	return
-}
-
-//
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
 	
 	if ct := _isControll(ci); ct != nil {
@@ -205,7 +173,7 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 				fmt.Println("IPC RECEIVE from Server(1) :", data)
 			case mes.MESSAGE_ID_HELLO : 
 				fmt.Println("IPC RECEIVE from Server(2) :", data)
-				ct.status_ch <-consts.CONTROL_RESOURCE
+				ct.Status_ch <-consts.CONTROL_RESOURCE
 			default:
 				fmt.Println("IPC RECEIVE from Server(3) :", data)
 			}
@@ -227,7 +195,7 @@ func _initialize()(*Controll, *ChildControll) {
 	// Create NewControll
 	_cn := NewControll(
 		//
-		_processRun,
+		chhandler.ProcessRun,
 		//
 		udp.New(),
 		ipcs.New("/tmp/controller.sock"),
@@ -255,7 +223,7 @@ func _initialize()(*Controll, *ChildControll) {
 
 	// Set Channel Handler
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 chhandler.New(_cn.status_ch, _processStatus ))
+				 chhandler.New(_cn.Status_ch, _processStatus ))
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
 				 chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage )) 
 	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,

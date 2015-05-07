@@ -14,45 +14,12 @@ import (
 	"log/syslog"
 	"os"
 	"runtime"
-	"syscall"
 )
 
 //
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	runtime.LockOSThread()
-}
-
-//
-func _processRun(ct *Rmanager, chData chhandler.ChannelHandler) (wait int) {
-	
-	//
-	go func() {
-		for {
-			ct.Lock()
-			for idx := 0; idx < chData.GetLen(); idx ++ {
-				select {
-				case _sig_ch := <-ct.GetSignalChannel() :
-					fmt.Println("SIGNALED")
-					switch _sig_ch {
-					case syscall.SIGTERM:
-						ct.GetExitChannel() <- 1
-					case syscall.SIGCHLD:
-						fmt.Println("CHILD EXIT")
-					default:
-						ct.GetExitChannel() <- 1
-					}
-				case _ch := <- chData.GetCh(idx) :
-					chData.Exec(idx, ct, _ch)
-				default:
-				}
-			}
-			ct.Unlock()
-		}
-	}()
-	wait = <-ct.Exit_ch
-
-	return
 }
 
 //
@@ -169,7 +136,7 @@ func _initialize()*Rmanager {
 	// Create NewRmanager
 	_cn := NewRmanager(
 		//
-		_processRun,
+		chhandler.ProcessRun,
 		//
 		ipcs.New("/tmp/rmanager.sock"),
 	)

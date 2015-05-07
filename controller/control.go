@@ -26,8 +26,7 @@ type Controller interface {
 	SendUdpMessage(mes string) int
 }
 //
-//
-type RunFunc func(ct *Controll, list chhandler.ChannelHandler) int
+type RunFunc func(ct base.Runner, list chhandler.ChannelHandler) int
 
 //
 type Controll struct {
@@ -35,7 +34,6 @@ type Controll struct {
 	base.BaseControll
 	//
 	status       consts.StatusId
-	status_ch    chan interface{}
 	udpSend_ch   chan string
 	udpRecv_ch   chan interface{}
 	ipcSrvRecv_ch   chan interface{}
@@ -61,7 +59,6 @@ func (ct *Controll) Init(
 	// Make Chanel
 	ct.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
-	ct.status_ch = make(chan interface{}, 2)
 	// Get map(for clients)
 	ct.clients = ipcsv.GetClientMap()
 
@@ -94,7 +91,6 @@ func (ct *Controll) Run(list chhandler.ChannelHandler) int {
 
 //
 func (ct *Controll) Terminate() int {
-	close(ct.status_ch)
 	close(ct.udpSend_ch)
 	close(ct.udpRecv_ch)
 	close(ct.ipcSrvRecv_ch)

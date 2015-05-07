@@ -17,7 +17,7 @@ type IpcServerAndUdp interface {
 }
 
 //
-type RunFunc func(ct *Rmanager, list chhandler.ChannelHandler) int
+type RunFunc func(ct base.Runner, list chhandler.ChannelHandler) int
 
 //
 type Rmanager struct {
@@ -37,6 +37,9 @@ type Rmanager struct {
 func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 	// Make Chanel
 	ct.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
+	// Status channel Not Used.
+	close(ct.Status_ch)
+	ct.Status_ch = nil
 
 	// Get map(for clients)
 	ct.clients = ipcsv.GetClientMap()

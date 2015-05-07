@@ -3,6 +3,9 @@ package chhandler
 //
 import (
 	"../base"
+	"../consts"
+	"fmt"
+	"syscall"
 )
 
 //
@@ -54,3 +57,36 @@ func New(ch chan interface{}, fn func(cit interface{}, data interface{}))(*Chann
 }
 
 //
+func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
+        //
+        go func() {
+                for {
+                        ct.Lock()
+                        for idx := 0; idx < chData.GetLen(); idx ++ {
+                                select {
+                                case _sig_ch := <- ct.GetSignalChannel():
+                                        fmt.Println("SIGNALED")
+                                        switch _sig_ch {
+                                        case syscall.SIGTERM:
+                                                ct.GetExitChannel() <- 1
+                                        case syscall.SIGCHLD:
+                                                fmt.Println("CHILD EXIT")
+                                        default:
+                                                ct.GetExitChannel() <- 1
+                                        }
+                                case _ch := <- chData.GetCh(idx) :
+                                        chData.Exec(idx, ct, _ch)
+                                default :
+                                }
+                        }
+                        ct.Unlock()
+                }
+        }()
+        if _ch := ct.GetStatusChannel(); _ch != nil {
+                _ch <- consts.STARTUP
+        }
+        wait = <- ct.GetExitChannel()
+
+        return
+}
+
