@@ -24,7 +24,7 @@ func init() {
 
 //
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
-	if ct := _isRmanager(ci); ct != nil { 
+	if ct := _isRmanager(ci); ct != nil {
 		var ms mes.MessageHello
 		//Recv HelloMessage Unmarshal
 		if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -86,8 +86,8 @@ func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_me
 func _processIpcSrvMessage(ci interface{}, data interface{}) {
 	//
 	if ct := _isRmanager(ci); ct != nil {
-		var _ipcTypeMessageFunc = []*ipcs.IpcTypeMessageHandler {
-        		{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
+		var _ipcTypeMessageFunc = []*ipcs.IpcTypeMessageHandler{
+			{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
 			{Types: mes.MESSAGE_ID_RESOUCE, Handler: _messageResourceHandler},
 		}
 
@@ -123,7 +123,7 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 }
 
 //
-func _initialize()*Rmanager {
+func _initialize() *Rmanager {
 	// Setting logging
 	_logger, err := syslog.New(consts.Logpriority, consts.Logtag)
 	errs.CheckErrorPanic(err, "syslog.New Error")
@@ -142,16 +142,17 @@ func _initialize()*Rmanager {
 	)
 
 	// Set Channel Handler
-	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				  chhandler.New( _cn.ipcSrvRecv_ch, _processIpcSrvMessage ))
-		
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage))
+
 	return _cn
 }
 
 //
-func _terminate(cn *Rmanager){
+func _terminate(cn *Rmanager) {
 	cn.Terminate()
 }
+
 //
 func main() {
 	// Init

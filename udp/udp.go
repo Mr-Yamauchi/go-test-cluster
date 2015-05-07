@@ -3,13 +3,13 @@ package udp
 //
 import (
 	consts "../consts"
+	"log"
 	"net"
 	"time"
-	"log"
 )
 
 type UdpController interface {
-	GetUdpChannel()(chan string, chan interface{})
+	GetUdpChannel() (chan string, chan interface{})
 	Run(sc chan string, rc chan interface{})
 }
 type UdpSender interface {
@@ -23,8 +23,8 @@ type SenderStarter func()
 type RecieverStarter func()
 
 type UdpControll struct {
-	udpsend_ch chan string
-	udprecv_ch chan interface{}
+	udpsend_ch    chan string
+	udprecv_ch    chan interface{}
 	senderStart   func(ch chan string)
 	receiverStart func(ch chan interface{})
 }
@@ -111,17 +111,19 @@ func receiverStart(ch chan interface{}) {
 		}
 	}
 }
+
 //
-func (uc *UdpControll) GetUdpChannel()(chan string, chan interface{}) {
+func (uc *UdpControll) GetUdpChannel() (chan string, chan interface{}) {
 	return uc.udpsend_ch, uc.udprecv_ch
 }
+
 //
 func New() *UdpControll {
-	return & UdpControll {
-		senderStart : senderStart,
-		receiverStart : receiverStart,
-       		udpsend_ch : make(chan string),
-        	udprecv_ch : make(chan interface{}),
+	return &UdpControll{
+		senderStart:   senderStart,
+		receiverStart: receiverStart,
+		udpsend_ch:    make(chan string),
+		udprecv_ch:    make(chan interface{}),
 	}
 }
 

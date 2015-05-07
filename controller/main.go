@@ -26,7 +26,7 @@ func init() {
 
 //
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
-	
+
 	if ct := _isControll(ci); ct != nil {
 		var ms mes.MessageHello
 		//Recv HelloMessage Unmarshal
@@ -70,8 +70,7 @@ func _processUdpMessage(ci interface{}, data interface{}) {
 		default:
 		}
 	}
-	
-		
+
 }
 
 //
@@ -146,10 +145,11 @@ func _processStatus(ci interface{}, data interface{}) {
 			case consts.PENDING:
 			case consts.OPERATIONAL:
 			}
-		default : 
+		default:
 		}
 	}
 }
+
 //
 func _processIpcClientMessage(ci interface{}, data interface{}) {
 	//
@@ -164,25 +164,26 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 			}
 
 			switch _head.Header.Types {
-			case mes.MESSAGE_ID_RESOUCE_RESPONSE :
+			case mes.MESSAGE_ID_RESOUCE_RESPONSE:
 				var ms mes.MessageResourceControllResponse
 				if err := json.Unmarshal(_recv_mes, &ms); err != nil {
 					log.Println("Unmarshal ERROR" + err.Error())
 					return
 				}
 				fmt.Println("IPC RECEIVE from Server(1) :", data)
-			case mes.MESSAGE_ID_HELLO : 
+			case mes.MESSAGE_ID_HELLO:
 				fmt.Println("IPC RECEIVE from Server(2) :", data)
-				ct.Status_ch <-consts.CONTROL_RESOURCE
+				ct.Status_ch <- consts.CONTROL_RESOURCE
 			default:
 				fmt.Println("IPC RECEIVE from Server(3) :", data)
 			}
-		default : 
+		default:
 		}
 	}
 }
+
 //
-func _initialize()(*Controll, *ChildControll) {
+func _initialize() (*Controll, *ChildControll) {
 	// Setting logging
 	_logger, err := syslog.New(consts.Logpriority, consts.Logtag)
 	errs.CheckErrorPanic(err, "syslog.New Error")
@@ -206,7 +207,7 @@ func _initialize()(*Controll, *ChildControll) {
 	_cn.rmanConnect.Connect()
 	_cn.ipcClient_ch = _cn.rmanConnect.GetReceiveChannel()
 
-	// Create Child Control 
+	// Create Child Control
 	_ch := NewChildControll(
 		[]ChildInfo{
 			{"controller", "/home/yamauchi/test.sh", 0},
@@ -222,22 +223,24 @@ func _initialize()(*Controll, *ChildControll) {
 	}
 
 	// Set Channel Handler
-	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 chhandler.New(_cn.Status_ch, _processStatus ))
-	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage )) 
-	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 chhandler.New( _cn.ipcClient_ch, _processIpcClientMessage )) 
-	chhandler.ChannelList = chhandler.SetChannelHandler( chhandler.ChannelList, _cn,
-				 chhandler.New( _cn.udpRecv_ch, _processUdpMessage ))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_cn.Status_ch, _processStatus))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_cn.ipcClient_ch, _processIpcClientMessage))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_cn.udpRecv_ch, _processUdpMessage))
 
 	return _cn, _ch
 }
+
 //
-func _terminate(cn *Controll, ch *ChildControll){
-	ch.Stop(syscall.SIGTERM)	
+func _terminate(cn *Controll, ch *ChildControll) {
+	ch.Stop(syscall.SIGTERM)
 	cn.Terminate()
 }
+
 //
 func main() {
 	// Init
@@ -249,6 +252,6 @@ func main() {
 	// Main Loop Running
 	_cn.Run(chhandler.ChannelList)
 
-	// Finish 
+	// Finish
 	_terminate(_cn, _ch)
 }

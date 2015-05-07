@@ -2,7 +2,7 @@ package ipcs
 
 import (
 	consts "../consts"
-        mes "../message"
+	mes "../message"
 	"log"
 	"net"
 	"os"
@@ -10,21 +10,20 @@ import (
 
 //
 type IpcServer interface {
-	GetClientMap()(map[int]*ClientConnect)
+	GetClientMap() map[int]*ClientConnect
 	GetRecvChannel() chan interface{}
 	SendIpcToClient(clients map[int]*ClientConnect, dest int, data []byte) int
 	Run()
 }
 
 type IpcServerController struct {
-	sockFiles string
+	sockFiles  string
 	ipcrecv_ch chan interface{}
-	
 }
 
 type IpcTypeMessageHandler struct {
-        Types   int
-        Handler func(interface{}, *ClientConnect, []byte, mes.MessageCommon)
+	Types   int
+	Handler func(interface{}, *ClientConnect, []byte, mes.MessageCommon)
 }
 
 //
@@ -34,22 +33,23 @@ type ClientConnect struct {
 }
 
 //
-func (is IpcServerController) GetClientMap()(map[int]*ClientConnect) {
-	return  make(map[int]*ClientConnect)
+func (is IpcServerController) GetClientMap() map[int]*ClientConnect {
+	return make(map[int]*ClientConnect)
 }
 
 //
 func (is IpcServerController) SendIpcToClient(clients map[int]*ClientConnect, dest int, data []byte) int {
-        if _to, ok := clients[dest]; ok {
-                if _, err := _to.Con.Write(data); err != nil {
-                        log.Println(err.Error())
-                }
-        } else {
-                log.Println("cannot find client.")
-        }
-	
+	if _to, ok := clients[dest]; ok {
+		if _, err := _to.Con.Write(data); err != nil {
+			log.Println(err.Error())
+		}
+	} else {
+		log.Println("cannot find client.")
+	}
+
 	return 0
 }
+
 //
 func (is *IpcServerController) clientReceive(c net.Conn) {
 	for {
@@ -90,10 +90,12 @@ func (is *IpcServerController) ipcServerStart() {
 		go is.clientReceive(_con)
 	}
 }
+
 //
 func (is *IpcServerController) GetRecvChannel() chan interface{} {
 	return is.ipcrecv_ch
 }
+
 //
 func (is *IpcServerController) Run() {
 	os.Remove(is.sockFiles)
@@ -102,9 +104,8 @@ func (is *IpcServerController) Run() {
 
 //
 func New(sf string) *IpcServerController {
-	return &IpcServerController {
-			sockFiles : sf,
-			ipcrecv_ch : make(chan interface{}),
-		}
+	return &IpcServerController{
+		sockFiles:  sf,
+		ipcrecv_ch: make(chan interface{}),
+	}
 }
-

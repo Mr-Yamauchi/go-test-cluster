@@ -28,7 +28,7 @@ type Rmanager struct {
 	//
 	ipcServer ipcs.IpcServer
 	//
-	runFunc                  RunFunc
+	runFunc RunFunc
 	//
 	clients map[int]*ipcs.ClientConnect
 }
@@ -43,7 +43,7 @@ func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 
 	// Get map(for clients)
 	ct.clients = ipcsv.GetClientMap()
-	// Set MainRun func 
+	// Set MainRun func
 	ct.runFunc = runfn
 	//
 	ct.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
@@ -82,11 +82,13 @@ func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer) *Rmanager {
 
 	return _cn
 }
+
 //
-func _isRmanager(ci interface{})(*Rmanager) {
+func _isRmanager(ci interface{}) *Rmanager {
 	switch ct := ci.(type) {
-		case *Rmanager : return ct
-		default :
+	case *Rmanager:
+		return ct
+	default:
 	}
 	return nil
 }

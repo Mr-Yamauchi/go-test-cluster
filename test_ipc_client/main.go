@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
-	"log"
 )
 
 //
@@ -44,9 +44,9 @@ type IpcMessageHandler struct {
 //
 type Rmanager struct {
 	signal_ch chan os.Signal
-	exit_ch chan int
-	recv_ch chan string
-	send_ch chan []byte
+	exit_ch   chan int
+	recv_ch   chan string
+	send_ch   chan []byte
 
 	ipc_recv_callback IpcRecvCallback
 	IpcMessageHandler []*IpcMessageHandler

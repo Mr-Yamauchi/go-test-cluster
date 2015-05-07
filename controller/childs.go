@@ -20,8 +20,8 @@ type ChildController interface {
 	Stop(os.Signal) error
 }
 
-type FuncStart func(ct *ChildControll)(error)
-type FuncStop func(ct *ChildControll, sig syscall.Signal)(error)
+type FuncStart func(ct *ChildControll) error
+type FuncStop func(ct *ChildControll, sig syscall.Signal) error
 
 type ChildControll struct {
 	childs    []ChildInfo

@@ -9,13 +9,13 @@ import (
 
 //
 type LockUnlocker interface {
-        Lock()
-        Unlock()
+	Lock()
+	Unlock()
 }
 type BaseController interface {
 	LockUnlocker
-	GetSignalChannel()(chan os.Signal)
-	GetExitChannel()(chan int)
+	GetSignalChannel() chan os.Signal
+	GetExitChannel() chan int
 }
 
 //
@@ -29,14 +29,14 @@ type Runner interface {
 
 //
 type BaseControll struct {
-	ChMutex	  *sync.Mutex
+	ChMutex   *sync.Mutex
 	Signal_ch chan os.Signal
 	Exit_ch   chan int
 	Status_ch chan interface{}
 }
 
 //
-func (bs *BaseControll) InitBase(sigs... os.Signal) {
+func (bs *BaseControll) InitBase(sigs ...os.Signal) {
 	bs.ChMutex = new(sync.Mutex)
 	bs.Signal_ch = make(chan os.Signal, 1)
 	signal.Notify(bs.Signal_ch, sigs...)
@@ -55,22 +55,23 @@ func (bs BaseControll) Unlock() {
 }
 
 //
-func (bs BaseControll)GetSignalChannel()(chan os.Signal) {
+func (bs BaseControll) GetSignalChannel() chan os.Signal {
 	return bs.Signal_ch
 }
 
 //
-func (bs BaseControll)GetExitChannel()(chan int) {
+func (bs BaseControll) GetExitChannel() chan int {
 	return bs.Exit_ch
 }
+
 //
-func (bs BaseControll)GetStatusChannel()(chan interface{}) {
+func (bs BaseControll) GetStatusChannel() chan interface{} {
 	return bs.Status_ch
 }
+
 //
 func (bs *BaseControll) TerminateBase() {
 	close(bs.Exit_ch)
 	close(bs.Signal_ch)
 	close(bs.Status_ch)
 }
-

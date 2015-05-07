@@ -12,7 +12,6 @@ import (
 	"syscall"
 )
 
-
 //
 type IpcServerAndUdp interface {
 	Init() int
@@ -25,6 +24,7 @@ type Controller interface {
 	IpcServerAndUdp
 	SendUdpMessage(mes string) int
 }
+
 //
 type RunFunc func(ct base.Runner, list chhandler.ChannelHandler) int
 
@@ -33,11 +33,11 @@ type Controll struct {
 	//
 	base.BaseControll
 	//
-	status       consts.StatusId
-	udpSend_ch   chan string
-	udpRecv_ch   chan interface{}
-	ipcSrvRecv_ch   chan interface{}
-	ipcClient_ch chan interface{}
+	status        consts.StatusId
+	udpSend_ch    chan string
+	udpRecv_ch    chan interface{}
+	ipcSrvRecv_ch chan interface{}
+	ipcClient_ch  chan interface{}
 	//
 	runFunc       RunFunc
 	udpController udp.UdpController
@@ -53,7 +53,7 @@ type Controll struct {
 func (ct *Controll) Init(
 	runfn RunFunc,
 	udpc udp.UdpController,
-	ipcsv ipcs.IpcServer ) int {
+	ipcsv ipcs.IpcServer) int {
 	//
 	ct.status = consts.STARTUP
 	// Make Chanel
@@ -125,11 +125,13 @@ func (ct *Controll) _resourceControl() int {
 	//
 	return 0
 }
+
 //
 func (ct *Controll) SendUdpMessage(mes string) int {
 	ct.udpSend_ch <- mes
 	return 0
 }
+
 //
 func NewControll(
 	runfn RunFunc,
@@ -141,11 +143,13 @@ func NewControll(
 	//
 	return _cn
 }
+
 //
-func _isControll(ci interface{})(*Controll){
+func _isControll(ci interface{}) *Controll {
 	switch ct := ci.(type) {
-		case *Controll : return ct
-		default :
+	case *Controll:
+		return ct
+	default:
 	}
 	return nil
 }
