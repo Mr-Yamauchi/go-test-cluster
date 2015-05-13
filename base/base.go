@@ -36,42 +36,42 @@ type BaseControll struct {
 }
 
 //
-func (bs *BaseControll) InitBase(sigs ...os.Signal) {
-	bs.ChMutex = new(sync.Mutex)
-	bs.Signal_ch = make(chan os.Signal, 1)
-	signal.Notify(bs.Signal_ch, sigs...)
-	bs.Exit_ch = make(chan int)
-	bs.Status_ch = make(chan interface{}, 2)
+func (bse *BaseControll) InitBase(sigs ...os.Signal) {
+	bse.ChMutex = new(sync.Mutex)
+	bse.Signal_ch = make(chan os.Signal, 1)
+	signal.Notify(bse.Signal_ch, sigs...)
+	bse.Exit_ch = make(chan int)
+	bse.Status_ch = make(chan interface{}, 2)
 }
 
 //
-func (bs BaseControll) Lock() {
-	bs.ChMutex.Lock()
+func (bse BaseControll) Lock() {
+	bse.ChMutex.Lock()
 }
 
 //
-func (bs BaseControll) Unlock() {
-	bs.ChMutex.Unlock()
+func (bse BaseControll) Unlock() {
+	bse.ChMutex.Unlock()
 }
 
 //
-func (bs BaseControll) GetSignalChannel() chan os.Signal {
-	return bs.Signal_ch
+func (bse BaseControll) GetSignalChannel() chan os.Signal {
+	return bse.Signal_ch
 }
 
 //
-func (bs BaseControll) GetExitChannel() chan int {
-	return bs.Exit_ch
+func (bse BaseControll) GetExitChannel() chan int {
+	return bse.Exit_ch
 }
 
 //
-func (bs BaseControll) GetStatusChannel() chan interface{} {
-	return bs.Status_ch
+func (bse BaseControll) GetStatusChannel() chan interface{} {
+	return bse.Status_ch
 }
 
 //
-func (bs *BaseControll) TerminateBase() {
-	close(bs.Exit_ch)
-	close(bs.Signal_ch)
-	close(bs.Status_ch)
+func (bse *BaseControll) TerminateBase() {
+	close(bse.Exit_ch)
+	close(bse.Signal_ch)
+	close(bse.Status_ch)
 }

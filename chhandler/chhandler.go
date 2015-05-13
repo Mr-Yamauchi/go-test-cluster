@@ -37,19 +37,19 @@ func SetChannelHandler(list ChannelLists, ct base.LockUnlocker, data *ChannelHan
 }
 
 //
-func (cc ChannelLists) Exec(idx int, cit interface{}, data interface{}) {
-	cc[idx].handler(cit, data)
+func (chl ChannelLists) Exec(idx int, cit interface{}, data interface{}) {
+	chl[idx].handler(cit, data)
 
 }
 
 //
-func (cc ChannelLists) GetCh(idx int) chan interface{} {
-	return cc[idx].Ch
+func (chl ChannelLists) GetCh(idx int) chan interface{} {
+	return chl[idx].Ch
 }
 
 //
-func (cc ChannelLists) GetLen() int {
-	return len(cc)
+func (chl ChannelLists) GetLen() int {
+	return len(chl)
 }
 
 //

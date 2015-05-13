@@ -13,6 +13,7 @@ import (
 type IpcClient interface {
 	Run(sch chan string, rch chan string)
 }
+
 type IpcClientController struct {
 	sockFiles  string
 	conn       net.Conn
@@ -20,7 +21,7 @@ type IpcClientController struct {
 }
 
 //
-func (ic *IpcClientController) reader(r io.Reader, ch chan string) {
+func (ipcc *IpcClientController) reader(r io.Reader, ch chan string) {
 	_buf := make([]byte, consts.BUFF_MAX)
 	for {
 		n, err := r.Read(_buf[:])
@@ -32,13 +33,13 @@ func (ic *IpcClientController) reader(r io.Reader, ch chan string) {
 }
 
 //
-func (ic *IpcClientController) TestPrint() {
+func (ipcc *IpcClientController) TestPrint() {
 	fmt.Println("IpcClientController")
 }
 
 //
-func (ic *IpcClientController) ipcClientStart(ch chan string) {
-	_c, err := net.Dial("unix", ic.sockFiles)
+func (ipcc *IpcClientController) ipcClientStart(ch chan string) {
+	_c, err := net.Dial("unix", ipcc.sockFiles)
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +50,7 @@ func (ic *IpcClientController) ipcClientStart(ch chan string) {
 		}
 	}()
 	//
-	go ic.reader(_c, ch)
+	go ipcc.reader(_c, ch)
 	//
 	for {
 		var _msg string = ""
@@ -69,32 +70,32 @@ func (ic *IpcClientController) ipcClientStart(ch chan string) {
 }
 
 //
-func (ic *IpcClientController) Connect() net.Conn {
-	_c, err := net.Dial("unix", ic.sockFiles)
+func (ipcc *IpcClientController) Connect() net.Conn {
+	_c, err := net.Dial("unix", ipcc.sockFiles)
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	ic.conn = _c
+	ipcc.conn = _c
 	return _c
 }
 
 //
-func (ic *IpcClientController) Disconnect() {
-	if ic.conn != nil {
-		if err := ic.conn.Close(); err != nil {
+func (ipcc *IpcClientController) Disconnect() {
+	if ipcc.conn != nil {
+		if err := ipcc.conn.Close(); err != nil {
 			log.Println(err)
 		}
 	}
 }
 
 //
-func (ic *IpcClientController) SendRecvAsync(msg []byte) int {
+func (ipcc *IpcClientController) SendRecvAsync(msg []byte) int {
 
-	if ic.conn != nil {
-		ic.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	if ipcc.conn != nil {
+		ipcc.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
-		_, err := ic.conn.Write(msg)
+		_, err := ipcc.conn.Write(msg)
 		if err != nil {
 			log.Println(err)
 			return 0
@@ -104,24 +105,24 @@ func (ic *IpcClientController) SendRecvAsync(msg []byte) int {
 	go func() {
 		_buf := make([]byte, consts.BUFF_MAX)
 
-		ic.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		ipcc.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
-		n, err := ic.conn.Read(_buf[:])
+		n, err := ipcc.conn.Read(_buf[:])
 		if err != nil {
 			log.Println(err)
-			ic.ipcrecv_ch <- ""
+			ipcc.ipcrecv_ch <- ""
 		}
-		ic.ipcrecv_ch <- string(_buf[0:n])
+		ipcc.ipcrecv_ch <- string(_buf[0:n])
 	}()
 
 	return 0
 }
 
 //
-func (ic *IpcClientController) SendRecv(msg []byte) string {
-	if ic.conn != nil {
-		ic.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-		_, err := ic.conn.Write(msg)
+func (ipcc *IpcClientController) SendRecv(msg []byte) string {
+	if ipcc.conn != nil {
+		ipcc.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		_, err := ipcc.conn.Write(msg)
 		if err != nil {
 			log.Println(err)
 			return ""
@@ -129,14 +130,14 @@ func (ic *IpcClientController) SendRecv(msg []byte) string {
 		//
 		_buf := make([]byte, consts.BUFF_MAX)
 
-		ic.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		ipcc.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
-		n, err := ic.conn.Read(_buf[:])
+		n, err := ipcc.conn.Read(_buf[:])
 		if err != nil {
 			log.Println(err)
 			return ""
 		}
-		//		ic.ipcrecv_ch <- string(_buf[0:n])
+		//		ipcc.ipcrecv_ch <- string(_buf[0:n])
 		return string(_buf[0:n])
 	}
 	log.Println("cannnot send : not conneccted")
@@ -144,13 +145,13 @@ func (ic *IpcClientController) SendRecv(msg []byte) string {
 }
 
 //
-func (ic *IpcClientController) Run(sch chan string, rch chan string) {
-	go ic.ipcClientStart(sch)
+func (ipcc *IpcClientController) Run(sch chan string, rch chan string) {
+	go ipcc.ipcClientStart(sch)
 }
 
 //
-func (ic *IpcClientController) GetReceiveChannel() chan interface{} {
-	return ic.ipcrecv_ch
+func (ipcc *IpcClientController) GetReceiveChannel() chan interface{} {
+	return ipcc.ipcrecv_ch
 }
 
 //

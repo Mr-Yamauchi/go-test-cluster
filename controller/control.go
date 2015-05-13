@@ -13,20 +13,15 @@ import (
 )
 
 //
-type IpcServerAndUdp interface {
+type Controller interface {
 	Init() int
 	Run() int
 	Terminate() int
-}
-
-//
-type Controller interface {
-	IpcServerAndUdp
 	SendUdpMessage(mes string) int
 }
 
 //
-type RunFunc func(ct base.Runner, list chhandler.ChannelHandler) int
+type RunFunc func(cnt base.Runner, list chhandler.ChannelHandler) int
 
 //
 type Controll struct {
@@ -50,52 +45,52 @@ type Controll struct {
 }
 
 //
-func (ct *Controll) Init(
+func (cnt *Controll) Init(
 	runfn RunFunc,
 	udpc udp.UdpController,
 	ipcsv ipcs.IpcServer) int {
 	//
-	ct.status = consts.STARTUP
+	cnt.status = consts.STARTUP
 	// Make Chanel
-	ct.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
+	cnt.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
 	// Get map(for clients)
-	ct.clients = ipcsv.GetClientMap()
+	cnt.clients = ipcsv.GetClientMap()
 
 	// Set MainRun Fun
-	ct.runFunc = runfn
+	cnt.runFunc = runfn
 
 	// Set Udp Controller
-	ct.udpController = udpc
-	ct.udpSend_ch, ct.udpRecv_ch = udpc.GetUdpChannel()
+	cnt.udpController = udpc
+	cnt.udpSend_ch, cnt.udpRecv_ch = udpc.GetUdpChannel()
 
 	// Set IpcServer Controller
-	ct.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
-	ct.ipcServer = ipcsv
+	cnt.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
+	cnt.ipcServer = ipcsv
 
 	//Start Udp and IPCServer
-	go ct.udpController.Run(ct.udpSend_ch, ct.udpRecv_ch)
-	go ct.ipcServer.Run()
+	go cnt.udpController.Run(cnt.udpSend_ch, cnt.udpRecv_ch)
+	go cnt.ipcServer.Run()
 
 	return 0
 
 }
 
 //
-func (ct *Controll) Run(list chhandler.ChannelHandler) int {
-	if ct.runFunc != nil {
-		ct.runFunc(ct, list)
+func (cnt *Controll) Run(list chhandler.ChannelHandler) int {
+	if cnt.runFunc != nil {
+		cnt.runFunc(cnt, list)
 	}
 	return 0
 }
 
 //
-func (ct *Controll) Terminate() int {
-	close(ct.udpSend_ch)
-	close(ct.udpRecv_ch)
-	close(ct.ipcSrvRecv_ch)
+func (cnt *Controll) Terminate() int {
+	close(cnt.udpSend_ch)
+	close(cnt.udpRecv_ch)
+	close(cnt.ipcSrvRecv_ch)
 
-	ct.TerminateBase()
+	cnt.TerminateBase()
 
 	log.Println("Terminated...")
 
@@ -103,7 +98,7 @@ func (ct *Controll) Terminate() int {
 }
 
 //
-func (ct *Controll) _resourceControl() int {
+func (cnt *Controll) _resourceControl() int {
 	//
 	_request := mes.MessageResourceControllRequest{
 		Header: mes.MessageHeader{
@@ -121,14 +116,14 @@ func (ct *Controll) _resourceControl() int {
 		},
 	}
 	//
-	ct.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+	cnt.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
 	//
 	return 0
 }
 
 //
-func (ct *Controll) SendUdpMessage(mes string) int {
-	ct.udpSend_ch <- mes
+func (cnt *Controll) SendUdpMessage(mes string) int {
+	cnt.udpSend_ch <- mes
 	return 0
 }
 
@@ -146,9 +141,9 @@ func NewControll(
 
 //
 func _isControll(ci interface{}) *Controll {
-	switch ct := ci.(type) {
+	switch cnt := ci.(type) {
 	case *Controll:
-		return ct
+		return cnt
 	default:
 	}
 	return nil

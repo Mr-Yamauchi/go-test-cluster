@@ -12,35 +12,36 @@ type UdpController interface {
 	GetUdpChannel() (chan string, chan interface{})
 	Run(sc chan string, rc chan interface{})
 }
-type UdpSender interface {
+
+type senderStarter interface {
 	senderStart(ch chan string)
 }
-type UdpReceiver interface {
+
+type receiverStarter interface {
 	receiverStart(ch chan interface{})
 }
 
-type SenderStarter func()
-type RecieverStarter func()
 
 type UdpControll struct {
 	udpsend_ch    chan string
 	udprecv_ch    chan interface{}
-	senderStart   func(ch chan string)
-	receiverStart func(ch chan interface{})
 }
 
 //
-func (uc *UdpControll) SenderStart() {
-	uc.senderStart(uc.udpsend_ch)
+func (udc *UdpControll) SenderStart(exec senderStarter) {
+	exec.senderStart(udc.udpsend_ch)
 }
 
 //
-func (uc *UdpControll) ReceiverStart() {
-	uc.receiverStart(uc.udprecv_ch)
+func (udc *UdpControll) ReceiverStart(exec receiverStarter) {
+	exec.receiverStart(udc.udprecv_ch)
 }
 
 //
-func senderStart(ch chan string) {
+type executer func()
+
+//
+func (exe executer) senderStart(ch chan string) {
 
 	_ServerAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:10001")
 	if err != nil {
@@ -81,7 +82,7 @@ func senderStart(ch chan string) {
 }
 
 //
-func receiverStart(ch chan interface{}) {
+func (exe executer) receiverStart(ch chan interface{}) {
 	/* Lets prepare a address at any address at port 10001*/
 	_ServerAddr, err := net.ResolveUDPAddr("udp", ":10001")
 	if err != nil {
@@ -113,22 +114,23 @@ func receiverStart(ch chan interface{}) {
 }
 
 //
-func (uc *UdpControll) GetUdpChannel() (chan string, chan interface{}) {
-	return uc.udpsend_ch, uc.udprecv_ch
+func (udc *UdpControll) GetUdpChannel() (chan string, chan interface{}) {
+	return udc.udpsend_ch, udc.udprecv_ch
 }
 
 //
 func New() *UdpControll {
 	return &UdpControll{
-		senderStart:   senderStart,
-		receiverStart: receiverStart,
 		udpsend_ch:    make(chan string),
 		udprecv_ch:    make(chan interface{}),
 	}
 }
 
 //
-func (uc *UdpControll) Run(sc chan string, rc chan interface{}) {
-	go uc.ReceiverStart()
-	go uc.SenderStart()
+func (udc *UdpControll) Run(sc chan string, rc chan interface{}) {
+	var e executer
+	//
+	go udc.ReceiverStart(e)
+	//
+	go udc.SenderStart(e)
 }

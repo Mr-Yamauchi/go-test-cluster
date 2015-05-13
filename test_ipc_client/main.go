@@ -195,7 +195,7 @@ func message_hello_handler(recv_mes []byte, head mes.MessageCommon) {
 
 //
 func message_resource_handler(recv_mes []byte, head mes.MessageCommon) {
-	var ms mes.MessageResourceControll
+	var ms mes.MessageResourceControllRequest
 	//Recv MessageResourceControll Unmarshal
 	if err := json.Unmarshal(recv_mes, &ms); err != nil {
 		fmt.Println("Unmarshal ERROR" + err.Error())

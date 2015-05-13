@@ -10,14 +10,14 @@ import (
 )
 
 //
-type IpcServerAndUdp interface {
+type Rmanagers interface {
 	Init() int
 	Run() int
 	Terminate() int
 }
 
 //
-type RunFunc func(ct base.Runner, list chhandler.ChannelHandler) int
+type RunFunc func(rman base.Runner, list chhandler.ChannelHandler) int
 
 //
 type Rmanager struct {
@@ -34,41 +34,41 @@ type Rmanager struct {
 }
 
 //
-func (ct *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
+func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 	// Make Chanel
-	ct.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
+	rman.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 	// Status channel Not Used.
-	close(ct.Status_ch)
-	ct.Status_ch = nil
+	close(rman.Status_ch)
+	rman.Status_ch = nil
 
 	// Get map(for clients)
-	ct.clients = ipcsv.GetClientMap()
+	rman.clients = ipcsv.GetClientMap()
 	// Set MainRun func
-	ct.runFunc = runfn
+	rman.runFunc = runfn
 	//
-	ct.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
-	ct.ipcServer = ipcsv
+	rman.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
+	rman.ipcServer = ipcsv
 
 	// Start IPCServer
-	go ct.ipcServer.Run()
+	go rman.ipcServer.Run()
 
 	return 0
 
 }
 
 //
-func (ct *Rmanager) Run(list chhandler.ChannelHandler) int {
-	if ct.runFunc != nil {
-		ct.runFunc(ct, list)
+func (rman *Rmanager) Run(list chhandler.ChannelHandler) int {
+	if rman.runFunc != nil {
+		rman.runFunc(rman, list)
 	}
 	return 0
 }
 
 //
-func (ct *Rmanager) Terminate() int {
-	close(ct.ipcSrvRecv_ch)
+func (rman *Rmanager) Terminate() int {
+	close(rman.ipcSrvRecv_ch)
 
-	ct.TerminateBase()
+	rman.TerminateBase()
 	log.Println("Terminated...")
 
 	return 0
@@ -85,9 +85,9 @@ func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer) *Rmanager {
 
 //
 func _isRmanager(ci interface{}) *Rmanager {
-	switch ct := ci.(type) {
+	switch rman := ci.(type) {
 	case *Rmanager:
-		return ct
+		return rman
 	default:
 	}
 	return nil
