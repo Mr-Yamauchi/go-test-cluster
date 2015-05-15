@@ -1,7 +1,6 @@
 package main
 
 import (
-	"../debug"
 	"../chhandler"
 	configure "../configure"
 	"../consts"
@@ -244,7 +243,6 @@ func _terminate(cn *Controll, ch *ChildControll) {
 
 //
 func main() {
-	debug.DEBUGT.Println("START")
 	// Init
 	_cn, _ch := _initialize()
 

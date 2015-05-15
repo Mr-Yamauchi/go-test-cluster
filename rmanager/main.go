@@ -2,7 +2,6 @@
 package main
 
 import (
-	"../debug"
 	"../chhandler"
 	configure "../configure"
 	consts "../consts"
@@ -156,7 +155,6 @@ func _terminate(cn *Rmanager) {
 
 //
 func main() {
-	debug.DEBUGT.Println("START")
 	// Init
 	_cn := _initialize()
 
