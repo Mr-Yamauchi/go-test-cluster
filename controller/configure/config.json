@@ -1,0 +1,5 @@
+{
+	"port" : 1024,
+	"cluster_name" : "test_cluster",
+	"max_buffer" : 1024
+}
