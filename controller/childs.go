@@ -61,12 +61,14 @@ func _childStart(ct *ChildControll) error {
 	log.Println("child start")
 	//
 	for i := 0; i < len(ct.childs); i++ {
-		if _id, err := syscall.ForkExec(ct.childs[i].path, nil, nil); err != nil || _id < 0 {
+		var procAttr os.ProcAttr
+		 procAttr.Files = []*os.File{nil, nil, nil}
+		if _p, err := os.StartProcess(ct.childs[i].path, nil, &procAttr); err != nil || _p.Pid < 0 {
 			log.Printf("cannnot fork child :  path[%s]", ct.childs[i].path)
 			return err
 		} else {
-			log.Printf("child start : path[%s] pid[%d]", ct.childs[i].path, _id)
-			ct.childs[i].pid = _id
+			log.Printf("child start : path[%s] pid[%d]", ct.childs[i].path, _p.Pid)
+			ct.childs[i].pid = _p.Pid
 		}
 		if _p, err := os.FindProcess(ct.childs[i].pid); _p == nil || err != nil {
 			log.Printf("cannnot start child :  path[%s]", ct.childs[i].path)
