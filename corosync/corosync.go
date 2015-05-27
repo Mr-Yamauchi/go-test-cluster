@@ -35,7 +35,7 @@ static uint32_t nodeidStart = 0;
 
 static void print_localnodeid(cpg_handle_t handle);
 static int runs();
-
+#if 0
 static void print_cpgname (const struct cpg_name *name)
 {
 	unsigned int i;
@@ -44,6 +44,7 @@ static void print_cpgname (const struct cpg_name *name)
 		printf ("%c", name->value[i]);
 	}
 }
+#endif
 
 static char * node_pid_format(unsigned int nodeid, unsigned int pid) {
 	static char buffer[100];
@@ -103,13 +104,7 @@ static void DeliverCallback (
 	void *msg,
 	size_t msg_len)
 {
-#if 0
-	print_time();
-	printf("DeliverCallback: message (len=%lu)from %s: '%s'\n",
-		       (unsigned long int) msg_len, node_pid_format(nodeid, pid),
-		       (const char *)msg);
-
-#endif
+	//call go function
 	goDeliverCallback(nodeid, pid, msg_len, (char *)msg);
 }
 
@@ -136,26 +131,7 @@ static void ConfchgCallback (
 	unsigned int i;
 	int result;
 	uint32_t nodeid;
-#if 0
-	for (i=0; i<joined_list_entries; i++) {
-		printf("joined %s reason: %d\n",
-				node_pid_format(joined_list[i].nodeid, joined_list[i].pid),
-				joined_list[i].reason);
-	}
 
-	for (i=0; i<left_list_entries; i++) {
-		printf("left %s reason: %d\n",
-				node_pid_format(left_list[i].nodeid, left_list[i].pid),
-				left_list[i].reason);
-	}
-
-	printf("nodes in group now %lu\n",
-	       (unsigned long int) member_list_entries);
-	for (i=0; i<member_list_entries; i++) {
-		printf("%s\n",
-				node_pid_format(member_list[i].nodeid, member_list[i].pid));
-	}
-#endif
 	result = cpg_local_get(handle, &nodeid);
 	if(result != CS_OK) {
 		printf("failed to get local nodeid %d\n", result);
@@ -178,6 +154,7 @@ static void ConfchgCallback (
 			}
 		}
 	}
+	//call go function
 	goConfchgCallback(
 		(struct cpg_address *)member_list, member_list_entries,
 		(struct cpg_address *)left_list, left_list_entries,
@@ -200,21 +177,7 @@ static void TotemConfchgCallback (
         uint32_t member_list_entries,
         const uint32_t *member_list)
 {
-#if 0
-	unsigned int i;
-
-	printf("\n");
-	print_time();
-	printf ("TotemConfchgCallback: ringid (%u.%"PRIu64")\n",
-		ring_id.nodeid, ring_id.seq);
-
-	printf("active processors %lu: ",
-	       (unsigned long int) member_list_entries);
-	for (i=0; i<member_list_entries; i++) {
-		printf("%d ", member_list[i]);
-	}
-	printf ("\n");
-#endif
+	//call go function
 	goTotemchgCallback(ring_id, member_list_entries, (uint32_t *)member_list);
 	
 }
@@ -226,10 +189,6 @@ static cpg_model_v1_data_t model_data = {
 	.flags =                     CPG_MODEL_V1_DELIVER_INITIAL_TOTEM_CONF,
 };
 
-static void sigintr_handler (int signum) __attribute__((noreturn));
-static void sigintr_handler (int signum) {
-	exit (0);
-}
 static struct cpg_name group_name;
 
 #define retrybackoff(counter) {    \
@@ -301,7 +260,7 @@ int runs () {
 	int i;
 	int recnt;
 	int doexit;
-	const char *exitStr = "EXIT";
+//	const char *exitStr = "EXIT";
 
 	doexit = 0;
 
@@ -310,7 +269,7 @@ int runs () {
 
 	recnt = 0;
 
-	printf ("Type %s to finish\n", exitStr);
+//	printf ("Type %s to finish\n", exitStr);
 	restart = 1;
 
 	do {
@@ -357,11 +316,12 @@ int runs () {
 			cpg_fd_get(handle, &select_fd);
 		}
 		FD_SET (select_fd, &read_fds);
-		FD_SET (STDIN_FILENO, &read_fds);
+//		FD_SET (STDIN_FILENO, &read_fds);
 		result = select (select_fd + 1, &read_fds, 0, 0, 0);
 		if (result == -1) {
 			perror ("select\n");
 		}
+#if 0
 		if (FD_ISSET (STDIN_FILENO, &read_fds)) {
 			char inbuf[132];
 			struct iovec iov;
@@ -381,6 +341,7 @@ int runs () {
 				cpg_mcast_joined(handle, CPG_TYPE_AGREED, &iov, 1);
 			}
 		}
+#endif
 		if (FD_ISSET (select_fd, &read_fds)) {
 			if (cpg_dispatch (handle, CS_DISPATCH_ALL) != CS_OK) {
 				if(doexit) {
@@ -408,6 +369,8 @@ import "fmt"
 import "strings"
 
 var t chan int
+
+//Need export for C-call.
 //export goConfchgCallback 
 func goConfchgCallback(member_list *C.struct_cpg_address, member_list_entries C.size_t,
         left_list *C.struct_cpg_address, left_list_entries C.size_t,
@@ -432,6 +395,7 @@ func goConfchgCallback(member_list *C.struct_cpg_address, member_list_entries C.
 	t<-1
 }
 
+//Need export for C-call.
 //export goDeliverCallback
 func goDeliverCallback(nodeid C.uint32_t, pid C.uint32_t, msg_len C.size_t, msg *C.char) {
 	fmt.Println("------------golang:Deliver------------")
@@ -439,6 +403,8 @@ func goDeliverCallback(nodeid C.uint32_t, pid C.uint32_t, msg_len C.size_t, msg 
 		       msg_len, strings.Trim(C.GoString(msg), "\n"), nodeid, pid)
 	t<-1
 }
+
+//Need export for C-call.
 //export goTotemchgCallback
 func goTotemchgCallback(ring_id C.struct_cpg_ring_id,
         member_list_entries C.uint32_t,
@@ -454,30 +420,7 @@ func goTotemchgCallback(ring_id C.struct_cpg_ring_id,
 	}
 	t<-1
 }
-//
-/*
-func init() {
-	runtime.LockOSThread()
-}
-*/
-//
-/*
-func main() {
-	ech := make(chan int)
-	t = make(chan int)
-	
-	go func() {
-		C.runs()
-		ech<-1		
-	}()
-	for{
-		select {
-			case <-t : fmt.Println("CHANNELED")
-			case <-ech : break
-		}
-	}
-}
-*/
+
 func Init()chan int {
 	t = make(chan int,128)
 	return t
