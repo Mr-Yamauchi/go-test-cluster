@@ -1,6 +1,6 @@
 package corosync
 
-/* 
+/*
 #cgo LDFLAGS: -lcpg
 
 #include <inttypes.h>
@@ -56,13 +56,13 @@ static char * node_pid_format(unsigned int nodeid, unsigned int pid) {
 		saddr.s_addr = nodeid;
 #endif
 		sprintf(buffer, "node/pid %s/%d", inet_ntoa(saddr),pid);
-	} 
+	}
 	else {
 		sprintf(buffer, "node/pid %d/%d", nodeid, pid);
-	} 
+	}
 	return buffer;
 }
-
+#if 0
 static void
 print_time(void)
 {
@@ -93,7 +93,7 @@ print_time(void)
 	assert(s-buf < (int)sizeof(buf));
 	printf("%s\n", buf);
 }
-
+#endif
 void goDeliverCallback(uint32_t nodeid, uint32_t pid, size_t msg_len, char *msg);
 
 static void DeliverCallback (
@@ -114,11 +114,11 @@ static struct cpg_address *getMember(struct cpg_address *ptr, uint32_t idx) {
 }
 
 void goConfchgCallback(
-	struct cpg_address *member_list, 
+	struct cpg_address *member_list,
 	size_t member_list_entries,
-	struct cpg_address *left_list, 
+	struct cpg_address *left_list,
 	size_t left_list_entries,
-	struct cpg_address *joined_list, 
+	struct cpg_address *joined_list,
 	size_t joined_list_entries);
 
 static void ConfchgCallback (
@@ -179,7 +179,7 @@ static void TotemConfchgCallback (
 {
 	//call go function
 	goTotemchgCallback(ring_id, member_list_entries, (uint32_t *)member_list);
-	
+
 }
 
 static cpg_model_v1_data_t model_data = {
@@ -371,7 +371,7 @@ import "strings"
 var t chan int
 
 //Need export for C-call.
-//export goConfchgCallback 
+//export goConfchgCallback
 func goConfchgCallback(member_list *C.struct_cpg_address, member_list_entries C.size_t,
         left_list *C.struct_cpg_address, left_list_entries C.size_t,
         join_list *C.struct_cpg_address, joined_list_entries C.size_t) {
