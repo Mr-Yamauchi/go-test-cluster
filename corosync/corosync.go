@@ -28,73 +28,16 @@ package corosync
 #define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
 #endif
 
+static cpg_handle_t handle;
 static int quit = 0;
 static int show_ip = 0;
 static int restart = 0;
 static uint32_t nodeidStart = 0;
 
-static void print_localnodeid(cpg_handle_t handle);
+static void sendClusterMessage(char *msg);
 static int runs();
-#if 0
-static void print_cpgname (const struct cpg_name *name)
-{
-	unsigned int i;
 
-	for (i = 0; i < name->length; i++) {
-		printf ("%c", name->value[i]);
-	}
-}
-#endif
-
-static char * node_pid_format(unsigned int nodeid, unsigned int pid) {
-	static char buffer[100];
-	if (show_ip) {
-		struct in_addr saddr;
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-		saddr.s_addr = swab32(nodeid);
-#else
-		saddr.s_addr = nodeid;
-#endif
-		sprintf(buffer, "node/pid %s/%d", inet_ntoa(saddr),pid);
-	}
-	else {
-		sprintf(buffer, "node/pid %d/%d", nodeid, pid);
-	}
-	return buffer;
-}
-#if 0
-static void
-print_time(void)
-{
-#define     MAXLEN (256)
-	char buf[MAXLEN];
-	char hostname[HOST_NAME_MAX];
-	struct timeval tnow;
-	time_t t;
-	size_t len;
-	char *s = buf;
-
-	len = sizeof(hostname);
-	if(gethostname(hostname, len) == 0) {
-		char *longName;
-		hostname[len-1] = '\0';
-		longName = hostname;
-		if( (longName = strstr( hostname, "." )) != NULL )
-		*longName = '\0';
-	}
-
-	strcpy(s, hostname);
-	s += strlen(hostname);
-	s += snprintf(s, sizeof(buf)-(s-buf), ":%d", getpid());
-	t = time(0);
-	gettimeofday( &tnow, 0 );
-	s += strftime(s, sizeof(buf)-(s-buf) , " %Y-%m-%d %T", localtime(&t));
-	s += snprintf(s, sizeof(buf)-(s-buf), ".%03ld", tnow.tv_usec/1000);
-	assert(s-buf < (int)sizeof(buf));
-	printf("%s\n", buf);
-}
-#endif
-void goDeliverCallback(uint32_t nodeid, uint32_t pid, size_t msg_len, char *msg);
+void corosyncDeliverCallback(uint32_t nodeid, uint32_t pid, size_t msg_len, char *msg);
 
 static void DeliverCallback (
 	cpg_handle_t handle,
@@ -105,7 +48,7 @@ static void DeliverCallback (
 	size_t msg_len)
 {
 	//call go function
-	goDeliverCallback(nodeid, pid, msg_len, (char *)msg);
+	corosyncDeliverCallback(nodeid, pid, msg_len, (char *)msg);
 }
 
 static struct cpg_address *getMember(struct cpg_address *ptr, uint32_t idx);
@@ -113,7 +56,7 @@ static struct cpg_address *getMember(struct cpg_address *ptr, uint32_t idx) {
 	return (ptr+idx);
 }
 
-void goConfchgCallback(
+void corosyncConfchgCallback(
 	struct cpg_address *member_list,
 	size_t member_list_entries,
 	struct cpg_address *left_list,
@@ -155,7 +98,7 @@ static void ConfchgCallback (
 		}
 	}
 	//call go function
-	goConfchgCallback(
+	corosyncConfchgCallback(
 		(struct cpg_address *)member_list, member_list_entries,
 		(struct cpg_address *)left_list, left_list_entries,
 		(struct cpg_address *)joined_list, joined_list_entries);
@@ -166,7 +109,7 @@ static uint32_t *getMember2(uint32_t *ptr, uint32_t idx) {
 	return (ptr+idx);
 }
 
-void goTotemchgCallback(
+void corosyncTotemchgCallback(
         struct cpg_ring_id ring_id,
         uint32_t member_list_entries,
         uint32_t *member_list);
@@ -178,7 +121,7 @@ static void TotemConfchgCallback (
         const uint32_t *member_list)
 {
 	//call go function
-	goTotemchgCallback(ring_id, member_list_entries, (uint32_t *)member_list);
+	corosyncTotemchgCallback(ring_id, member_list_entries, (uint32_t *)member_list);
 
 }
 
@@ -221,32 +164,16 @@ static struct cpg_name group_name;
 	}                                     \
 } while (counter < max)
 
-static void print_localnodeid(cpg_handle_t handle)
-{
-	char addrStr[128];
-	unsigned int retries;
-	unsigned int nodeid;
-	struct sockaddr_storage addr;
-	struct sockaddr_in *v4addr = (struct sockaddr_in *)&addr;
-	int result;
+void sendClusterMessage(char *msg){ 
+	char inbuf[132];
+	struct iovec iov;
 
-	retries = 0;
-
-	cs_repeat(retries, 30, result = cpg_local_get(handle, &nodeid));
-	if (result != CS_OK) {
-		printf ("Could not get local node id\n");
-	} else {
-	v4addr->sin_addr.s_addr = nodeid;
-	if(inet_ntop(AF_INET, (const void *)&v4addr->sin_addr.s_addr,
-                           addrStr, (socklen_t)sizeof(addrStr)) == NULL) {
-		addrStr[0] = 0;
-	}
-	printf ("Local node id is %s/%x result %d\n", addrStr, nodeid, result);
-	}
+	iov.iov_base = msg;
+	iov.iov_len = strlen(msg)+1;
+	cpg_mcast_joined(handle, CPG_TYPE_AGREED, &iov, 1);
 }
 
 int runs () {
-	cpg_handle_t handle;
 	fd_set read_fds;
 	int select_fd;
 	int result;
@@ -260,7 +187,6 @@ int runs () {
 	int i;
 	int recnt;
 	int doexit;
-//	const char *exitStr = "EXIT";
 
 	doexit = 0;
 
@@ -269,7 +195,6 @@ int runs () {
 
 	recnt = 0;
 
-//	printf ("Type %s to finish\n", exitStr);
 	restart = 1;
 
 	do {
@@ -306,42 +231,24 @@ int runs () {
 			}
 			recnt = 0;
 
+#if 0
 			printf ("membership list\n");
 			for (i = 0; i < member_list_entries; i++) {
 				printf ("node id %d pid %d\n", member_list[i].nodeid,
 					member_list[i].pid);
 			}
+#endif
 
 			FD_ZERO (&read_fds);
 			cpg_fd_get(handle, &select_fd);
 		}
 		FD_SET (select_fd, &read_fds);
-//		FD_SET (STDIN_FILENO, &read_fds);
+
 		result = select (select_fd + 1, &read_fds, 0, 0, 0);
 		if (result == -1) {
 			perror ("select\n");
 		}
-#if 0
-		if (FD_ISSET (STDIN_FILENO, &read_fds)) {
-			char inbuf[132];
-			struct iovec iov;
 
-			fgets_res = fgets(inbuf, (int)sizeof(inbuf), stdin);
-			if (fgets_res == NULL) {
-				doexit = 1;
-				cpg_leave(handle, &group_name);
-			}
-			if (strncmp(inbuf, exitStr, strlen(exitStr)) == 0) {
-				doexit = 1;
-				cpg_leave(handle, &group_name);
-			}
-			else {
-				iov.iov_base = inbuf;
-				iov.iov_len = strlen(inbuf)+1;
-				cpg_mcast_joined(handle, CPG_TYPE_AGREED, &iov, 1);
-			}
-		}
-#endif
 		if (FD_ISSET (select_fd, &read_fds)) {
 			if (cpg_dispatch (handle, CS_DISPATCH_ALL) != CS_OK) {
 				if(doexit) {
@@ -365,66 +272,109 @@ int runs () {
 }
 */
 import "C"
-import "fmt"
 import "strings"
+import "../debug"
 
-var t chan int
+var t1 chan interface{}
+var t2 chan interface{}
+var t3 chan interface{}
+
+//
+type ListData struct {
+	Nodeid	uint
+	Pid	uint
+}
+type CorosyncConfchg struct {
+	Member_list []ListData
+	Left_list []ListData
+	Join_list []ListData
+}
 
 //Need export for C-call.
-//export goConfchgCallback
-func goConfchgCallback(member_list *C.struct_cpg_address, member_list_entries C.size_t,
+//export corosyncConfchgCallback
+func corosyncConfchgCallback(member_list *C.struct_cpg_address, member_list_entries C.size_t,
         left_list *C.struct_cpg_address, left_list_entries C.size_t,
         join_list *C.struct_cpg_address, joined_list_entries C.size_t) {
 
-	fmt.Println("------------golang:ConfChg------------")
-	fmt.Println("--member_ent :", member_list_entries)
+	_m := CorosyncConfchg{}
+
 	for i:= 0; i<int(member_list_entries);i++ {
 		p := (*C.struct_cpg_address)(C.getMember(member_list, C.uint32_t(i)))
-		fmt.Printf("-- member(%d:%d)\n", p.nodeid, p.pid)
+		_m.Member_list = append(_m.Member_list, ListData{ uint(p.nodeid), uint(p.pid) })	
 	}
-	fmt.Println("--left_ent :", left_list_entries)
 	for j:= 0; j<int(left_list_entries);j++ {
 		p := (*C.struct_cpg_address)(C.getMember(left_list, C.uint32_t(j)))
-		fmt.Printf("-- left  (%d:%d)\n", p.nodeid, p.pid)
+		_m.Left_list = append(_m.Left_list, ListData{ uint(p.nodeid), uint(p.pid) })	
 	}
-	fmt.Println("--join_ent :", joined_list_entries)
 	for k:= 0; k<int(joined_list_entries);k++ {
 		p := (*C.struct_cpg_address)(C.getMember(join_list, C.uint32_t(k)))
-		fmt.Printf("-- joined(%d:%d)\n", p.nodeid, p.pid)
+		_m.Join_list = append(_m.Join_list, ListData{ uint(p.nodeid), uint(p.pid) })	
 	}
-	t<-1
+
+	t1 <- _m
+}
+
+//
+type CorosyncDeliver struct {
+	Nodeid 	uint
+	Pid	uint
+	Msg	string
 }
 
 //Need export for C-call.
-//export goDeliverCallback
-func goDeliverCallback(nodeid C.uint32_t, pid C.uint32_t, msg_len C.size_t, msg *C.char) {
-	fmt.Println("------------golang:Deliver------------")
-	fmt.Printf("DeliverCallback: message (len=%d)from %s: %d:%d\n",
+//export corosyncDeliverCallback
+func corosyncDeliverCallback(nodeid C.uint32_t, pid C.uint32_t, msg_len C.size_t, msg *C.char) {
+	debug.DEBUGT.Println("------------golang:Deliver------------")
+	debug.DEBUGT.Println("DeliverCallback: message (len=%d)from %s: %d:%d\n",
 		       msg_len, strings.Trim(C.GoString(msg), "\n"), nodeid, pid)
-	t<-1
+
+	t2 <- CorosyncDeliver { 
+		Nodeid : uint(nodeid), 
+		Pid : uint(pid), 
+		Msg : C.GoString(msg),
+	}
+}
+
+//
+type CorosyncTotemchg struct {
+	Member_list []uint
 }
 
 //Need export for C-call.
-//export goTotemchgCallback
-func goTotemchgCallback(ring_id C.struct_cpg_ring_id,
+//export corosyncTotemchgCallback
+func corosyncTotemchgCallback(ring_id C.struct_cpg_ring_id,
         member_list_entries C.uint32_t,
-        member_list *C.uint32_t){
+        member_list *C.uint32_t) {
 
-	fmt.Println("------------golang:TotemchgCallback------------")
-	fmt.Printf("goTotemConfchgCallback: ringid (%d.%d)\n", ring_id.nodeid, ring_id.seq)
-	fmt.Printf("active processors %d: \n", member_list_entries)
+	_m := CorosyncTotemchg{}
+
+	debug.DEBUGT.Println("------------golang:TotemchgCallback------------")
+/*
+	debug.DEBUGT.Printf("goTotemConfchgCallback: ringid (%d.%d)\n", ring_id.nodeid, ring_id.seq)
+	debug.DEBUGT.Printf("active processors %d: \n", member_list_entries)
+*/
 
 	for i:=0; i<int(member_list_entries); i++ {
 		p := (*C.uint32_t)(C.getMember2(member_list, C.uint32_t(i)))
-		fmt.Printf(" %d \n", *p)
+		_m.Member_list = append(_m.Member_list, uint(*p))
 	}
-	t<-1
+	t3 <- _m
 }
 
-func Init()chan int {
-	t = make(chan int,128)
-	return t
+//
+func SendClusterMessage(msg string) {
+	C.sendClusterMessage(C.CString(msg))
 }
+
+//
+func Init()(chan interface{}, chan interface{}, chan interface{}) {
+	t1 = make(chan interface{},128)
+	t2 = make(chan interface{},128)
+	t3 = make(chan interface{},128)
+	return t1, t2, t3
+}
+
+//
 func Run() {
 	go func() {
 		C.runs()

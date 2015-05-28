@@ -9,7 +9,7 @@ import (
 	ipcc "../ipcc"
 	ipcs "../ipcs"
 	mes "../message"
-	udp "../udp"
+//	udp "../udp"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,6 +17,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"../corosync"
 )
 
 //
@@ -199,7 +200,8 @@ func _initialize() (*Controll, *ChildControll) {
 		//
 		chhandler.ProcessRun,
 		//
-		udp.New(),
+//corosync not Used		udp.New(),
+		nil,
 		ipcs.New("/tmp/controller.sock"),
 	)
 
@@ -230,10 +232,53 @@ func _initialize() (*Controll, *ChildControll) {
 		chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage))
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_cn.ipcClient_ch, _processIpcClientMessage))
+/* corosync  not Used 
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_cn.udpRecv_ch, _processUdpMessage))
+*/
 
 	return _cn, _ch
+}
+
+//
+func _processConfchgCallback(ci interface{}, data interface{}) {
+	fmt.Println("_processConfchgCallback")
+	switch _v := data.(type) {
+		case corosync.CorosyncConfchg :
+			fmt.Println("--member_ent :", len(_v.Member_list))
+			for i:= 0; i<len(_v.Member_list);i++ {
+				fmt.Printf("-- member(%d:%d)\n", _v.Member_list[i].Nodeid, _v.Member_list[i].Pid)
+			}
+			fmt.Println("--left_ent :", len(_v.Left_list))
+			for j:= 0; j<len(_v.Left_list);j++ {
+				fmt.Printf("-- left  (%d:%d)\n", _v.Left_list[j].Nodeid, _v.Left_list[j].Pid)
+			}
+			fmt.Println("--join_ent :", len(_v.Join_list))
+			for k:= 0; k<len(_v.Join_list);k++ {
+				fmt.Printf("-- joined(%d:%d)\n", _v.Join_list[k].Nodeid, _v.Join_list[k].Pid)
+			}
+			corosync.SendClusterMessage("xyz----XYZ2")
+	}
+}
+
+//
+func _processMsgDeliverCallback(ci interface{}, data interface{}) {
+	fmt.Println("_processMsgDeliverCallback")
+	switch _v := data.(type) {
+		case corosync.CorosyncDeliver: fmt.Println("_processMsgDeliverCallback msg:", _v.Msg)
+	}
+}
+
+//
+func _processTotemchgCallback(ci interface{}, data interface{}) {
+	fmt.Println("_processTotemchgCallback")
+	switch _v := data.(type) {
+		case corosync.CorosyncTotemchg : 
+			fmt.Println("_processTotemchgCallback() len :", len(_v.Member_list))
+			for i:= 0; i < len(_v.Member_list); i++ { 
+				fmt.Println("active_member : ", _v.Member_list[i])
+			}
+	}
 }
 
 //
@@ -245,12 +290,24 @@ func _terminate(cn *Controll, ch *ChildControll) {
 //
 func main() {
 	debug.DEBUGT.Println("START")
+
 	// Init
 	_cn, _ch := _initialize()
 
-	//
-	_cn.SendUdpMessage(fmt.Sprintf("BBB"))
+	// corosync connect Init/set ch handler/Run
+	t1, t2, t3 := corosync.Init();
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(t1, _processConfchgCallback))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(t2, _processMsgDeliverCallback))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(t3, _processTotemchgCallback))
+	corosync.Run();
 
+	//
+/* corosync not Used 
+	_cn.SendUdpMessage(fmt.Sprintf("BBB"))
+*/
 	// Main Loop Running
 	_cn.Run(chhandler.ChannelList)
 

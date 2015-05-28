@@ -61,15 +61,19 @@ func (cnt *Controll) Init(
 	cnt.runFunc = runfn
 
 	// Set Udp Controller
-	cnt.udpController = udpc
-	cnt.udpSend_ch, cnt.udpRecv_ch = udpc.GetUdpChannel()
+	if udpc != nil {
+		cnt.udpController = udpc
+		cnt.udpSend_ch, cnt.udpRecv_ch = udpc.GetUdpChannel()
+	}
 
 	// Set IpcServer Controller
 	cnt.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
 	cnt.ipcServer = ipcsv
 
 	//Start Udp and IPCServer
-	go cnt.udpController.Run(cnt.udpSend_ch, cnt.udpRecv_ch)
+	if udpc != nil {
+		go cnt.udpController.Run(cnt.udpSend_ch, cnt.udpRecv_ch)
+	}
 	go cnt.ipcServer.Run()
 
 	return 0
@@ -86,8 +90,12 @@ func (cnt *Controll) Run(list chhandler.ChannelHandler) int {
 
 //
 func (cnt *Controll) Terminate() int {
-	close(cnt.udpSend_ch)
-	close(cnt.udpRecv_ch)
+	if cnt.udpSend_ch != nil {
+		close(cnt.udpSend_ch)
+	}
+	if cnt.udpRecv_ch != nil {
+		close(cnt.udpRecv_ch)
+	}
 	close(cnt.ipcSrvRecv_ch)
 
 	cnt.TerminateBase()
@@ -123,7 +131,9 @@ func (cnt *Controll) _resourceControl() int {
 
 //
 func (cnt *Controll) SendUdpMessage(mes string) int {
-	cnt.udpSend_ch <- mes
+	if cnt.udpSend_ch != nil {
+		cnt.udpSend_ch <- mes
+	}
 	return 0
 }
 
