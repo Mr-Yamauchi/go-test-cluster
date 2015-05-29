@@ -7,6 +7,9 @@ import (
 	"../ipcs"
 	"log"
 	"syscall"
+	"errors"
+	"os"
+	"fmt"
 )
 
 //
@@ -30,6 +33,8 @@ type Rmanager struct {
 	//
 	runFunc RunFunc
 	//
+	rscOp_ch chan interface{}
+	//
 	clients map[int]*ipcs.ClientConnect
 }
 
@@ -49,6 +54,8 @@ func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 	rman.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
 	rman.ipcServer = ipcsv
 
+	//
+	rman.rscOp_ch = make(chan interface{}, 128)
 	// Start IPCServer
 	go rman.ipcServer.Run()
 
@@ -57,11 +64,49 @@ func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 }
 
 //
-func (rman *Rmanager) Run(list chhandler.ChannelHandler) int {
+func (rman *Rmanager) Run(list chhandler.ChannelHandler)(int, error) {
 	if rman.runFunc != nil {
 		rman.runFunc(rman, list)
+		return 0, nil
 	}
-	return 0
+	return 1, errors.New("NOT RUNNNING")
+}
+
+//
+func (rman *Rmanager) ExecRscOp( rsc string, op string, timeout int, delay int) chan int {
+
+	_v := make(chan int)	
+	// 
+	defer func() {
+		_c := make(chan int)
+
+		go func() {
+                	var procAttr os.ProcAttr
+			args := []string { op, }
+
+			os.Setenv("OCF_ROOT","/usr/lib/ocf")
+                	procAttr.Files = []*os.File{nil, nil, nil}
+			procAttr.Env = os.Environ()
+			_p, err := os.StartProcess(rsc, args, &procAttr)
+			if err != nil || _p.Pid < 0 {
+                        	log.Printf("cannnot fork child :  path[%s]", rsc, err)
+                        	fmt.Printf("cannnot fork child :  path[%s]", rsc, err)
+				fmt.Println("ENV print: ",procAttr.Env)
+				_c <- -1
+                	} else {
+                        	log.Printf("child start : path[%s] pid[%d]", rsc, _p.Pid)
+                        	fmt.Printf("child start : path[%s] pid[%d]", rsc, _p.Pid)
+                	}
+			_, err = _p.Wait()
+	//		_s, err := _p.Wait()
+	//		status := _s.Sys().(syscall.WaitStatus)
+	//		_c <- status.ExitStatus()
+			_c <- 0
+		}()
+	}()
+
+	//	
+	return _v
 }
 
 //

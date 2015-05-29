@@ -80,6 +80,23 @@ func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_me
 		//
 		//
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
+		//
+		ct.rscOp_ch <- ms
+	}
+}
+
+//
+func _processRscopEvent(ci interface{}, data interface{}) {
+	fmt.Println("_processRscopEvent call")
+	//
+	if ct := _isRmanager(ci); ct != nil {
+		switch _v := data.(type) {
+			case mes.MessageResourceControllRequest : 
+				fmt.Println(_v.Resource_Name)
+				fmt.Println(_v.Parameters)
+				ct.ExecRscOp("/usr/lib/ocf/resource.d/heartbeat/Dummy", "start", 10, 10)
+				//ct.ExecRscOp("/home/yamauchi/test.sh", "start", 10, 10)
+		}
 	}
 }
 
@@ -115,13 +132,14 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 			}
 		case string:
 			if _v == "exit" {
-				fmt.Println(_v)
+				debug.DEBUGT.Println(_v)
 			}
 		default:
 			log.Println("unknown Data RECV(default)")
 		}
 	}
 }
+
 
 //
 func _initialize() *Rmanager {
@@ -134,7 +152,7 @@ func _initialize() *Rmanager {
 	_config := configure.New("../configure/config.json")
 	_config.DumpConfig()
 
-	// Create NewRmanager
+	// Create NewRmanager and Get IpcServer Channel.
 	_cn := NewRmanager(
 		//
 		chhandler.ProcessRun,
@@ -142,9 +160,11 @@ func _initialize() *Rmanager {
 		ipcs.New("/tmp/rmanager.sock"),
 	)
 
-	// Set Channel Handler
+	// Set IpcServer channel handler.
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_cn.rscOp_ch, _processRscopEvent))
 
 	return _cn
 }
@@ -165,4 +185,6 @@ func main() {
 
 	// Finish
 	_terminate(_cn)
+
+	debug.DEBUGT.Println("FINISH")
 }

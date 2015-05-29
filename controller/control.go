@@ -7,7 +7,6 @@ import (
 	"../ipcc"
 	"../ipcs"
 	mes "../message"
-	"../udp"
 	"log"
 	"syscall"
 )
@@ -17,7 +16,6 @@ type Controller interface {
 	Init() int
 	Run() int
 	Terminate() int
-	SendUdpMessage(mes string) int
 }
 
 //
@@ -29,13 +27,10 @@ type Controll struct {
 	base.BaseControll
 	//
 	status        consts.StatusId
-	udpSend_ch    chan string
-	udpRecv_ch    chan interface{}
 	ipcSrvRecv_ch chan interface{}
 	ipcClient_ch  chan interface{}
 	//
 	runFunc       RunFunc
-	udpController udp.UdpController
 	ipcServer     ipcs.IpcServer
 	//
 	//
@@ -47,7 +42,6 @@ type Controll struct {
 //
 func (cnt *Controll) Init(
 	runfn RunFunc,
-	udpc udp.UdpController,
 	ipcsv ipcs.IpcServer) int {
 	//
 	cnt.status = consts.STARTUP
@@ -60,20 +54,10 @@ func (cnt *Controll) Init(
 	// Set MainRun Fun
 	cnt.runFunc = runfn
 
-	// Set Udp Controller
-	if udpc != nil {
-		cnt.udpController = udpc
-		cnt.udpSend_ch, cnt.udpRecv_ch = udpc.GetUdpChannel()
-	}
-
 	// Set IpcServer Controller
 	cnt.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
 	cnt.ipcServer = ipcsv
 
-	//Start Udp and IPCServer
-	if udpc != nil {
-		go cnt.udpController.Run(cnt.udpSend_ch, cnt.udpRecv_ch)
-	}
 	go cnt.ipcServer.Run()
 
 	return 0
@@ -90,12 +74,6 @@ func (cnt *Controll) Run(list chhandler.ChannelHandler) int {
 
 //
 func (cnt *Controll) Terminate() int {
-	if cnt.udpSend_ch != nil {
-		close(cnt.udpSend_ch)
-	}
-	if cnt.udpRecv_ch != nil {
-		close(cnt.udpRecv_ch)
-	}
 	close(cnt.ipcSrvRecv_ch)
 
 	cnt.TerminateBase()
@@ -130,21 +108,12 @@ func (cnt *Controll) _resourceControl() int {
 }
 
 //
-func (cnt *Controll) SendUdpMessage(mes string) int {
-	if cnt.udpSend_ch != nil {
-		cnt.udpSend_ch <- mes
-	}
-	return 0
-}
-
-//
 func NewControll(
 	runfn RunFunc,
-	udpc udp.UdpController,
 	ipcsv ipcs.IpcServer) *Controll {
 	//
 	_cn := new(Controll)
-	_cn.Init(runfn, udpc, ipcsv)
+	_cn.Init(runfn, ipcsv)
 	//
 	return _cn
 }

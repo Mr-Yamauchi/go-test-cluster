@@ -9,7 +9,6 @@ import (
 	ipcc "../ipcc"
 	ipcs "../ipcs"
 	mes "../message"
-//	udp "../udp"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -59,20 +58,6 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
 		//
 	}
-}
-
-//
-//
-func _processUdpMessage(ci interface{}, data interface{}) {
-	//
-	if ct := _isControll(ci); ct != nil {
-		switch _v := data.(type) {
-		case string:
-			fmt.Println("UDP RECEIVE : " + _v)
-		default:
-		}
-	}
-
 }
 
 //
@@ -200,8 +185,6 @@ func _initialize() (*Controll, *ChildControll) {
 		//
 		chhandler.ProcessRun,
 		//
-//corosync not Used		udp.New(),
-		nil,
 		ipcs.New("/tmp/controller.sock"),
 	)
 
@@ -232,10 +215,6 @@ func _initialize() (*Controll, *ChildControll) {
 		chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage))
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_cn.ipcClient_ch, _processIpcClientMessage))
-/* corosync  not Used 
-	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
-		chhandler.New(_cn.udpRecv_ch, _processUdpMessage))
-*/
 
 	return _cn, _ch
 }
@@ -243,41 +222,48 @@ func _initialize() (*Controll, *ChildControll) {
 //
 func _processConfchgCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processConfchgCallback")
-	switch _v := data.(type) {
-		case corosync.CorosyncConfchg :
-			fmt.Println("--member_ent :", len(_v.Member_list))
-			for i:= 0; i<len(_v.Member_list);i++ {
-				fmt.Printf("-- member(%d:%d)\n", _v.Member_list[i].Nodeid, _v.Member_list[i].Pid)
-			}
-			fmt.Println("--left_ent :", len(_v.Left_list))
-			for j:= 0; j<len(_v.Left_list);j++ {
-				fmt.Printf("-- left  (%d:%d)\n", _v.Left_list[j].Nodeid, _v.Left_list[j].Pid)
-			}
-			fmt.Println("--join_ent :", len(_v.Join_list))
-			for k:= 0; k<len(_v.Join_list);k++ {
-				fmt.Printf("-- joined(%d:%d)\n", _v.Join_list[k].Nodeid, _v.Join_list[k].Pid)
-			}
-			corosync.SendClusterMessage("xyz----XYZ2")
+	if ct := _isControll(ci); ct != nil {
+		switch _v := data.(type) {
+			case corosync.CorosyncConfchg :
+				fmt.Println("--member_ent :", len(_v.Member_list))
+				for i:= 0; i<len(_v.Member_list);i++ {
+					fmt.Printf("-- member(%d:%d)\n", _v.Member_list[i].Nodeid, _v.Member_list[i].Pid)
+				}
+				fmt.Println("--left_ent :", len(_v.Left_list))
+				for j:= 0; j<len(_v.Left_list);j++ {
+					fmt.Printf("-- left  (%d:%d)\n", _v.Left_list[j].Nodeid, _v.Left_list[j].Pid)
+				}
+				fmt.Println("--join_ent :", len(_v.Join_list))
+				for k:= 0; k<len(_v.Join_list);k++ {
+					fmt.Printf("-- joined(%d:%d)\n", _v.Join_list[k].Nodeid, _v.Join_list[k].Pid)
+				}
+				corosync.SendClusterMessage("xyz----XYZ2")
+		}
 	}
 }
 
 //
 func _processMsgDeliverCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processMsgDeliverCallback")
-	switch _v := data.(type) {
-		case corosync.CorosyncDeliver: fmt.Println("_processMsgDeliverCallback msg:", _v.Msg)
+	if ct := _isControll(ci); ct != nil {
+		switch _v := data.(type) {
+			case corosync.CorosyncDeliver: 
+				fmt.Println("_processMsgDeliverCallback msg:", _v.Msg)
+		}
 	}
 }
 
 //
 func _processTotemchgCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processTotemchgCallback")
-	switch _v := data.(type) {
-		case corosync.CorosyncTotemchg : 
-			fmt.Println("_processTotemchgCallback() len :", len(_v.Member_list))
-			for i:= 0; i < len(_v.Member_list); i++ { 
-				fmt.Println("active_member : ", _v.Member_list[i])
-			}
+	if ct := _isControll(ci); ct != nil {
+		switch _v := data.(type) {
+			case corosync.CorosyncTotemchg : 
+				fmt.Println("_processTotemchgCallback() len :", len(_v.Member_list))
+				for i:= 0; i < len(_v.Member_list); i++ { 
+					fmt.Println("active_member : ", _v.Member_list[i])
+				}
+		}
 	}
 }
 
@@ -295,22 +281,21 @@ func main() {
 	_cn, _ch := _initialize()
 
 	// corosync connect Init/set ch handler/Run
-	t1, t2, t3 := corosync.Init();
+	_chConfchg, _chMsgDeliv, _chTotemchg := corosync.Init();
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
-		chhandler.New(t1, _processConfchgCallback))
+		chhandler.New(_chConfchg, _processConfchgCallback))
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
-		chhandler.New(t2, _processMsgDeliverCallback))
+		chhandler.New(_chMsgDeliv, _processMsgDeliverCallback))
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
-		chhandler.New(t3, _processTotemchgCallback))
+		chhandler.New(_chTotemchg, _processTotemchgCallback))
+	//start poll corosync event.
 	corosync.Run();
 
-	//
-/* corosync not Used 
-	_cn.SendUdpMessage(fmt.Sprintf("BBB"))
-*/
 	// Main Loop Running
 	_cn.Run(chhandler.ChannelList)
 
 	// Finish
 	_terminate(_cn, _ch)
+
+	debug.DEBUGT.Println("FINISH")
 }
