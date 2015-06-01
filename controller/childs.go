@@ -63,7 +63,8 @@ func _childStart(ct *ChildControll) error {
 	for i := 0; i < len(ct.childs); i++ {
 		var procAttr os.ProcAttr
 		procAttr.Files = []*os.File{nil, nil, nil}
-		if _p, err := os.StartProcess(ct.childs[i].path, nil, &procAttr); err != nil || _p.Pid < 0 {
+		//if _p, err := os.StartProcess(ct.childs[i].path, nil, &procAttr); err != nil || _p.Pid < 0 {
+		if _p, err := os.StartProcess(ct.childs[i].path, []string { "start" }, &procAttr); err != nil || _p.Pid < 0 {
 			log.Printf("cannnot fork child :  path[%s]", ct.childs[i].path)
 			return err
 		} else {

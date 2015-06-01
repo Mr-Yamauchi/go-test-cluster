@@ -14,3 +14,9 @@ func (dbg DEBUGS)Println(a ...interface{}) {
 	}
 }
 
+func (dbg DEBUGS)Printf(format string, a ...interface{}) {
+	if (dbg) {
+		fmt.Printf(format, a)
+	}
+}
+

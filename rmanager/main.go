@@ -92,10 +92,10 @@ func _processRscopEvent(ci interface{}, data interface{}) {
 	if ct := _isRmanager(ci); ct != nil {
 		switch _v := data.(type) {
 			case mes.MessageResourceControllRequest : 
-				fmt.Println(_v.Resource_Name)
-				fmt.Println(_v.Parameters)
-				ct.ExecRscOp("/usr/lib/ocf/resource.d/heartbeat/Dummy", "start", 10, 10)
-				//ct.ExecRscOp("/home/yamauchi/test.sh", "start", 10, 10)
+				debug.DEBUGT.Println(_v.Resource_Name)
+				debug.DEBUGT.Println(_v.Parameters)
+				ct.ExecRscOp("/usr/lib/ocf/resource.d/heartbeat/Dummy", "start", 10000, 5000)
+				//ct.ExecRscOp("/home/yamauchi/test.sh", "start", 10000, 5000)
 		}
 	}
 }

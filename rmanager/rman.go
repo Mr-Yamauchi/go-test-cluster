@@ -2,14 +2,15 @@
 package main
 
 import (
+	"../debug"
 	"../base"
 	"../chhandler"
 	"../ipcs"
-	"log"
 	"syscall"
 	"errors"
 	"os"
 	"fmt"
+	"time"
 )
 
 //
@@ -73,35 +74,86 @@ func (rman *Rmanager) Run(list chhandler.ChannelHandler)(int, error) {
 }
 
 //
-func (rman *Rmanager) ExecRscOp( rsc string, op string, timeout int, delay int) chan int {
+func (rman *Rmanager) ExecRscOp( rsc string, op string, timeout int, delayMs int64) chan int {
 
 	_v := make(chan int)	
 	// 
 	defer func() {
+		// Make channel for Sync RA Prooess. 
 		_c := make(chan int)
 
+		// Make channel for timeout.
+		_t := make(chan int)
+
+		// Delay.
+		if delayMs > 0 {
+			time.Sleep(time.Duration(delayMs) * time.Millisecond)
+		}
+
+		// Start RA Process.
 		go func() {
                 	var procAttr os.ProcAttr
-			args := []string { op, }
+			args := []string {
+				"",
+				rsc,
+				op,
+				"",
+			}
 
-			os.Setenv("OCF_ROOT","/usr/lib/ocf")
+			// Set OCF_ Parameter.
+			os.Setenv("OCF_ROOT", "/usr/lib/ocf")
+			//os.Setenv("__OCF_ACTION", "start")
+
+			// Set Process Attributes.
                 	procAttr.Files = []*os.File{nil, nil, nil}
 			procAttr.Env = os.Environ()
-			_p, err := os.StartProcess(rsc, args, &procAttr)
+
+			fmt.Println("exec RA :", rsc, op, time.Now())
+			fmt.Println("exec RA (args):", args)
+			// Exec RA
+			_p, err := os.StartProcess(args[1], args[1:], &procAttr)
+			//_p, err := os.StartProcess(rsc, []string{ "start", }, &procAttr)
 			if err != nil || _p.Pid < 0 {
-                        	log.Printf("cannnot fork child :  path[%s]", rsc, err)
-                        	fmt.Printf("cannnot fork child :  path[%s]", rsc, err)
-				fmt.Println("ENV print: ",procAttr.Env)
+                        	debug.DEBUGT.Println("cannot fork child:", rsc, err, procAttr.Env)
 				_c <- -1
                 	} else {
-                        	log.Printf("child start : path[%s] pid[%d]", rsc, _p.Pid)
-                        	fmt.Printf("child start : path[%s] pid[%d]", rsc, _p.Pid)
+                        	debug.DEBUGT.Println("child start : path:%s pid:%d\n", rsc, _p.Pid)
                 	}
-			_, err = _p.Wait()
-	//		_s, err := _p.Wait()
-	//		status := _s.Sys().(syscall.WaitStatus)
-	//		_c <- status.ExitStatus()
-			_c <- 0
+
+			// timeout ...
+			fmt.Println("timeout set :", timeout, time.Now())
+			_tm := time.AfterFunc(time.Duration(timeout) * time.Millisecond, 
+				func() {
+					fmt.Println("timeout occrur!!!", time.Now())
+					_t <- 1
+				} )
+							
+			// Wait.....
+			_s, err := _p.Wait()
+			_tm.Stop()
+			debug.DEBUGT.Println("WAIT END : child", rsc)
+			debug.DEBUGT.Println("WAIT END : p", _p)
+			fmt.Println("WAIT END : child", rsc, time.Now())
+			if _s.Exited() {
+				_c <- 0
+			} else {
+				_c <- -1
+			}
+		}()
+
+		// goruoutine for sync/async and manage timeout.
+		go func(){
+			for {
+				select {
+					case _v := <-_c : 
+						fmt.Println("child terminated.", _v)
+						break
+					case <-_t : 
+						fmt.Println("timeour occurred.")
+						break
+
+				}
+			}
 		}()
 	}()
 
@@ -114,7 +166,7 @@ func (rman *Rmanager) Terminate() int {
 	close(rman.ipcSrvRecv_ch)
 
 	rman.TerminateBase()
-	log.Println("Terminated...")
+	debug.DEBUGT.Println("Terminated...")
 
 	return 0
 }
