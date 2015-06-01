@@ -94,7 +94,6 @@ func (rman *Rmanager) ExecRscOp( rsc string, op string, timeout int, delayMs int
 		go func() {
                 	var procAttr os.ProcAttr
 			args := []string {
-				"",
 				rsc,
 				op,
 				"",
@@ -102,17 +101,13 @@ func (rman *Rmanager) ExecRscOp( rsc string, op string, timeout int, delayMs int
 
 			// Set OCF_ Parameter.
 			os.Setenv("OCF_ROOT", "/usr/lib/ocf")
-			//os.Setenv("__OCF_ACTION", "start")
 
 			// Set Process Attributes.
                 	procAttr.Files = []*os.File{nil, nil, nil}
 			procAttr.Env = os.Environ()
 
-			fmt.Println("exec RA :", rsc, op, time.Now())
-			fmt.Println("exec RA (args):", args)
 			// Exec RA
-			_p, err := os.StartProcess(args[1], args[1:], &procAttr)
-			//_p, err := os.StartProcess(rsc, []string{ "start", }, &procAttr)
+			_p, err := os.StartProcess(args[0], args[0:], &procAttr)
 			if err != nil || _p.Pid < 0 {
                         	debug.DEBUGT.Println("cannot fork child:", rsc, err, procAttr.Env)
 				_c <- -1
