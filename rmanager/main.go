@@ -81,23 +81,39 @@ func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_me
 		//
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
 		//
-		ct.rscOp_ch <- ms
+		ct.rscOpRecvMessage_ch <- ms
 	}
-}
 
+}
 //
-func _processRscopEvent(ci interface{}, data interface{}) {
-	fmt.Println("_processRscopEvent call")
+func _processRscOpMessage(ci interface{}, data interface{}) {
 	//
 	if ct := _isRmanager(ci); ct != nil {
 		switch _v := data.(type) {
 			case mes.MessageResourceControllRequest : 
 				debug.DEBUGT.Println(_v.Resource_Name)
 				debug.DEBUGT.Println(_v.Parameters)
-				ct.ExecRscOp("/usr/lib/ocf/resource.d/heartbeat/Dummy", "start", 10000, 5000)
-				//ct.ExecRscOp("/home/yamauchi/test.sh", "start", 10000, 5000)
+		//		ct.ExecRscOp(1, "/usr/lib/ocf/resource.d/heartbeat/Dummy", []string {"aaa=10", "bbb=200", }, "start", 0, 10000, 0, true)
+				ct.ExecRscOp(2, "/usr/lib/ocf/resource.d/heartbeat/Dummy2", []string {"aaa=10", "bbb=200", }, "start", 0, 10000, 0, false)
+				ct.ExecRscOp(2, "/usr/lib/ocf/resource.d/heartbeat/Dummy2", []string {"aaa=10", "bbb=200", }, "monitor", 5000, 10000, 0, true)
+				ct.ExecRscOp(2, "/usr/lib/ocf/resource.d/heartbeat/Dummy2", []string {"aaa=10", "bbb=200", }, "stop", 0, 10000, 0, false)
 		}
 	}
+}
+
+//
+func _processRscOpEvent(ci interface{}, data interface{}) {
+	fmt.Println("_processRscOpEvent call")
+	if ct := _isRmanager(ci); ct != nil {
+		switch _v := data.(type) {
+			case Execrsc :
+				fmt.Println("_processRscOpEvent : ", _v)
+		default:
+			log.Println("unknown Event RECV(default)")
+			
+		}
+	}
+
 }
 
 //
@@ -160,11 +176,18 @@ func _initialize() *Rmanager {
 		ipcs.New("/tmp/rmanager.sock"),
 	)
 
-	// Set IpcServer channel handler.
+	// Set IpcServer Message channel handler.
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_cn.ipcSrvRecv_ch, _processIpcSrvMessage))
+
+	// Set RscOp Message channel handler.
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
-		chhandler.New(_cn.rscOp_ch, _processRscopEvent))
+		chhandler.New(_cn.rscOpRecvMessage_ch, _processRscOpMessage))
+
+	// set RscOp Event channel handler.
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_cn.rscOp_ch, _processRscOpEvent))
+
 
 	return _cn
 }
