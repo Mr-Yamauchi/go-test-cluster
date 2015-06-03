@@ -83,26 +83,91 @@ func (cnt *Controll) Terminate() int {
 	return 0
 }
 
+
+var step int = 1
 //
 func (cnt *Controll) _resourceControl() int {
 	//
-	_request := mes.MessageResourceControllRequest{
+	var send bool = true
+	var _request mes.MessageResourceControllRequest
+
+	// Todo : Resource placement processing is necessary
+
+	switch step {
+		case 1 :
+		_request = mes.MessageResourceControllRequest{
+		Header: mes.MessageHeader{
+			Destination_id: int(consts.RMANAGER_ID),
+			Source_id:      int(consts.CONTROLLER_ID),
+			Types:          int(mes.MESSAGE_ID_RESOUCE),
+		},
+		Operation:     "start",
+		Rscid : 1,
+		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
+		Interval : 0,
+		Timeout	: 20,
+		Delay : 0,	
+		Async : false,
+		ParamLen : 1,
+		Parameters: []mes.Parameter{
+			{
+				Name:  "start",
+				Value: "0",
+			},
+		},
+		}
+		case 2 :
+		_request = mes.MessageResourceControllRequest{
 		Header: mes.MessageHeader{
 			Destination_id: int(consts.RMANAGER_ID),
 			Source_id:      int(consts.CONTROLLER_ID),
 			Types:          int(mes.MESSAGE_ID_RESOUCE),
 		},
 		Operation:     "monitor",
-		Resource_Name: "Dummy",
+		Rscid : 1,
+		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
+		Interval : 10,
+		Timeout	: 20000,
+		Delay : 0,	
+		Async : true,
+		ParamLen : 1,
 		Parameters: []mes.Parameter{
 			{
 				Name:  "monitor",
 				Value: "0",
 			},
 		},
+		}
+		case 3 : 
+		_request = mes.MessageResourceControllRequest{
+		Header: mes.MessageHeader{
+			Destination_id: int(consts.RMANAGER_ID),
+			Source_id:      int(consts.CONTROLLER_ID),
+			Types:          int(mes.MESSAGE_ID_RESOUCE),
+		},
+		Operation:     "stop",
+		Rscid : 1,
+		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
+		Interval : 0,
+		Timeout	: 20,
+		Delay : 0,	
+		Async : false,
+		ParamLen : 1,
+		Parameters: []mes.Parameter{
+			{
+				Name:  "monitor",
+				Value: "0",
+			},
+		},
+		}
+		default : 
+			send = false
 	}
 	//
-	cnt.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+	if send {
+		cnt.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+		step = step + 1
+	}
 	//
 	return 0
 }

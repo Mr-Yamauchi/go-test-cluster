@@ -13,6 +13,10 @@ const (
 	RMANAGER_ID
 )
 
+// Returnc Code
+const CL_NORMAL_END = 0
+const CL_ERROR = -1 
+const CL_NOT_FORK = -2
 //
 const BUFF_MAX = 1024
 

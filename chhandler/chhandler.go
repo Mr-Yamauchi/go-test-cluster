@@ -2,6 +2,7 @@ package chhandler
 
 //
 import (
+	"../debug"
 	"../base"
 	"../consts"
 	"fmt"
@@ -66,7 +67,7 @@ func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
 			for idx := 0; idx < chData.GetLen(); idx++ {
 				select {
 				case _sig_ch := <-ct.GetSignalChannel():
-					fmt.Println("SIGNALED")
+					debug.DEBUGT.Println("SIGNALED")
 					switch _sig_ch {
 					case syscall.SIGTERM:
 						ct.GetExitChannel() <- 1

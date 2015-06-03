@@ -2,6 +2,7 @@
 package main
 
 import (
+	"../consts"
 	"../debug"
 	"../base"
 	"../chhandler"
@@ -96,7 +97,7 @@ type Execrsc struct {
 	op      string
 	ret	int
 	tm   	*time.Timer
-	terminate bool
+	terminate bool				//Todo : Always false
 }
 //
 func NewExecrsc(rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer)(r *Execrsc)  {
@@ -116,8 +117,7 @@ func NewExecrsc(rscid int, pid int, rsc string, parameters []string, op string, 
 func (rman *Rmanager) setRscTerminate( rscid int, op string ) {
 	if op == "stop" {
 		if _, ok := rman.onRsc[rscid]; ok {
-			e := rman.onRsc[rscid]
-			e.terminate = true
+			rman.onRsc[rscid].terminate = true
 		}
 	}
 }
@@ -134,7 +134,7 @@ func (rman *Rmanager) isRscTerminate( rscid int ) bool {
 }
 
 //
-func (rman *Rmanager) setMonitor( rscid int, rsc string, parameters []string, op string, interval int, timeout int, delayMs int64, async bool)(t *time.Timer) {
+func (rman *Rmanager) setMonitor( rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool)(t *time.Timer) {
 
 	rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, nil)
 
@@ -156,8 +156,8 @@ func (rman *Rmanager) setMonitor( rscid int, rsc string, parameters []string, op
 }
 
 //
-func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op string, interval int, timeout int, delayMs int64, async bool) {
-	// 
+func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool) {
+
 	// Make channel for finish RA Prooess. 
 	_c := make(chan Execrsc, 128)
 
@@ -185,7 +185,6 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 
 	// Start RA Process.
 	go func() {
-               	var procAttr os.ProcAttr
 		args := []string {
 			rsc,
 			op,
@@ -202,14 +201,17 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 		}
 
 		// Set Process Attributes.
-               	procAttr.Files = []*os.File{nil, nil, nil}
-		procAttr.Env = os.Environ()
+		procAttr := os.ProcAttr {
+			Files : []*os.File{nil, nil, nil},
+			Env   : os.Environ(),
+		}
 
 		// Exec RA
 		_p, err := os.StartProcess(args[0], args[0:], &procAttr)
 		if err != nil || _p.Pid < 0 {
                        	debug.DEBUGT.Println("cannot fork child:", rsc, err, procAttr.Env)
-			_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, -2, nil)
+
+			_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_NOT_FORK, nil)
 
 			return
               	} else {
@@ -220,55 +222,57 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 		_tm := time.AfterFunc(
 			time.Duration(timeout) * time.Millisecond, 
 			func() {
-				_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, -1, nil)
+				_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_ERROR, nil)
 			})
 						
 		// Wait.....
 		_s, err := _p.Wait()
 		_tm.Stop()
 
+		//
+		ret := consts.CL_ERROR
 		if _s.Exited() && _s.Success() {
-			_c <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, 0, nil)
-		} else {
-			_c <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, -1, nil)
+			ret = consts.CL_NORMAL_END
 		}
+		_c <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, ret, nil)
 	}()
 
 	// goruoutine for sync/async and manage timeout.
-	wait_func := func()(exe Execrsc) {
-		var ret Execrsc
+	waitChildFunc := func()(exe Execrsc) {
+		var r Execrsc
 		select {
-			case ret = <-_c : 
-				if  !rman.isRscTerminate(ret.rscid) {
-					fmt.Println("child terminated.", ret)
-					rman.rscOp_ch <- ret
+			case r = <-_c : 
+				if  !rman.isRscTerminate(r.rscid) {
+					fmt.Println("child terminated.", r)
+					rman.rscOp_ch <- r
 				}
-			case ret = <-_t : 
-				fmt.Println("timeour occurred.", ret)
-				if err := syscall.Kill(ret.pid, syscall.SIGKILL); err != nil {
+			case r = <-_t : 
+				fmt.Println("timeour occurred.", r)
+				if err := syscall.Kill(r.pid, syscall.SIGKILL); err != nil {
 					fmt.Println("cannnot child kill:",err.Error())
 				} else {
-					fmt.Println("child kill:",ret.rsc)
+					fmt.Println("child kill:",r.rsc)
 				}
-				rman.rscOp_ch <- ret
+				rman.rscOp_ch <- r
 		}
-		return ret
+
+		// Set of the repetition of the monitor.
+		if r.ret == 0 && interval > 0 {
+			rman.setMonitor(rscid, rsc, parameters, op, interval, timeout, delayMs, async)	
+		}	
+
+		rman.setRscTerminate(rscid, op)
+
+		return r
 	}
+
 	// Change async/sync call by goroutine.	
 	if (async) {
 		go func(){
-			_r := wait_func()
-			if _r.ret == 0 && interval > 0 {
-				rman.setMonitor(rscid, rsc, parameters, op, interval, timeout, delayMs, async)	
-			}	
-			rman.setRscTerminate(rscid, op)
+			waitChildFunc()
 		}()
 	} else {
-		_r := wait_func()
-		if _r.ret == 0 && interval > 0 {
-			rman.setMonitor(rscid, rsc, parameters, op, interval, timeout, delayMs, async)	
-		}
-		rman.setRscTerminate(rscid, op)
+		waitChildFunc()
 	}		
 }
 

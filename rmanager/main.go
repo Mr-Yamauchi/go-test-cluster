@@ -61,25 +61,14 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
 	if ct := _isRmanager(ci); ct != nil {
 		var ms mes.MessageResourceControllRequest
+
 		//Recv MessageResourceControll Unmarshal
 		if err := json.Unmarshal(recv_mes, &ms); err != nil {
 			fmt.Println("Unmarshal ERROR" + err.Error())
 			return
 		}
 		fmt.Println(ms)
-		//MessageResourceControll Response Send to Client
-		_response := mes.MessageHello{
-			Header: mes.MessageHeader{
-				Destination_id: head.Header.Source_id,
-				Source_id:      int(consts.CONTROLLER_ID),
-				Types:          int(mes.MESSAGE_ID_RESOUCE_RESPONSE),
-			},
-			Pid:     os.Getpid(),
-			Message: "ACK",
-		}
-		//
-		//
-		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
+
 		//
 		ct.rscOpRecvMessage_ch <- ms
 	}
@@ -91,12 +80,19 @@ func _processRscOpMessage(ci interface{}, data interface{}) {
 	if ct := _isRmanager(ci); ct != nil {
 		switch _v := data.(type) {
 			case mes.MessageResourceControllRequest : 
+				debug.DEBUGT.Println(_v.Operation)
+				debug.DEBUGT.Println(_v.Rscid)
 				debug.DEBUGT.Println(_v.Resource_Name)
+				debug.DEBUGT.Println(_v.Timeout)
+				debug.DEBUGT.Println(_v.Delay)
+				debug.DEBUGT.Println(_v.Async)
+				debug.DEBUGT.Println(_v.ParamLen)
 				debug.DEBUGT.Println(_v.Parameters)
-		//		ct.ExecRscOp(1, "/usr/lib/ocf/resource.d/heartbeat/Dummy", []string {"aaa=10", "bbb=200", }, "start", 0, 10000, 0, true)
-				ct.ExecRscOp(2, "/usr/lib/ocf/resource.d/heartbeat/Dummy2", []string {"aaa=10", "bbb=200", }, "start", 0, 10000, 0, false)
-				ct.ExecRscOp(2, "/usr/lib/ocf/resource.d/heartbeat/Dummy2", []string {"aaa=10", "bbb=200", }, "monitor", 5000, 10000, 0, true)
-				ct.ExecRscOp(2, "/usr/lib/ocf/resource.d/heartbeat/Dummy2", []string {"aaa=10", "bbb=200", }, "stop", 0, 10000, 0, false)
+
+				ct.ExecRscOp(2, _v.Resource_Name, mes.ParametersToString(_v.ParamLen, _v.Parameters), _v.Operation, _v.Interval, _v.Timeout, _v.Delay, _v.Async)
+			default : 
+				debug.DEBUGT.Println("unknown message receive")
+			
 		}
 	}
 }
@@ -108,6 +104,23 @@ func _processRscOpEvent(ci interface{}, data interface{}) {
 		switch _v := data.(type) {
 			case Execrsc :
 				fmt.Println("_processRscOpEvent : ", _v)
+                		//MessageResourceControll Response Send to Client
+		                _response := mes.MessageResourceControllResponse {
+                        		Header: mes.MessageHeader{
+                                		Destination_id: int(consts.CONTROLLER_ID),
+                                		Source_id:      int(consts.RMANAGER_ID),
+                                		Types:          int(mes.MESSAGE_ID_RESOUCE_RESPONSE),
+                        		},
+                        		Pid:     os.Getpid(),
+					Rscid:   _v.rscid,
+					Operation: _v.op,
+					Resource_Name : _v.rsc,
+                        		Message: "OK",
+                		}
+                		//
+		                //
+		                ct.ipcServer.SendIpcToClient(ct.clients, int(consts.CONTROLLER_ID), mes.MakeMessage(_response))
+                //
 		default:
 			log.Println("unknown Event RECV(default)")
 			

@@ -158,6 +158,7 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 					return
 				}
 				fmt.Println("IPC RECEIVE from Server(1) :", data)
+				ct.Status_ch <- consts.CONTROL_RESOURCE
 			case mes.MESSAGE_ID_HELLO:
 				fmt.Println("IPC RECEIVE from Server(2) :", data)
 				ct.Status_ch <- consts.CONTROL_RESOURCE

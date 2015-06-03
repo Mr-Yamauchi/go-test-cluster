@@ -36,15 +36,26 @@ type Parameter struct {
 }
 type MessageResourceControllRequest struct {
 	Header        MessageHeader `json:"header"`
+	Rscid	      int	    `json:"rscid"`
 	Operation     string        `json:"operation"`
 	Resource_Name string        `json:"resource_name"`
+	Interval      int64	    `json:"interval"`
+	Timeout       int64         `json:"timeout"`	
+	Delay         int64         `json:"delay"`
+	Async         bool          `json:"async"`
+	ParamLen      int	    `json:"paramlen"`
 	Parameters    []Parameter   `json:"parameters"`
 }
+
 type MessageResourceControllResponse struct {
 	Header        MessageHeader `json:"header"`
-	Pid     int           `json:"pid"`
+	Pid           int           `json:"pid"`
+	Rscid	      int	    `json:"rscid"`
+	Operation     string        `json:"operation"`
+	Resource_Name string        `json:"resource_name"`
 	Message string        `json:"messge"`
 }
+
 //
 func MakeMessage(data interface{}) []byte {
 	_json, err := json.Marshal(data)
@@ -53,6 +64,16 @@ func MakeMessage(data interface{}) []byte {
 		return nil
 	}
 	return _json
+}
+
+//
+func ParametersToString( len int, p []Parameter )[]string {
+	r := []string {}
+	for i := 0; i < len; i++ {
+		r = append(r, p[i].Name + "=" + p[i].Value)
+fmt.Println("r = ", r)
+	}
+	return r
 }
 
 /*

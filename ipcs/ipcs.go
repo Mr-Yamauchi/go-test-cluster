@@ -42,6 +42,8 @@ func (ipcs IpcServerController) SendIpcToClient(clients map[int]*ClientConnect, 
 	if _to, ok := clients[dest]; ok {
 		if _, err := _to.Con.Write(data); err != nil {
 			log.Println(err.Error())
+			_to.Con.Close()
+			delete(clients, dest)
 		}
 	} else {
 		log.Println("cannot find client.")
