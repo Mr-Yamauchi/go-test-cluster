@@ -115,6 +115,7 @@ func _processRscOpEvent(ci interface{}, data interface{}) {
 					Rscid:   _v.rscid,
 					Operation: _v.op,
 					Resource_Name : _v.rsc,
+					ResultCode : _v.ret,
                         		Message: "OK",
                 		}
                 		//
@@ -223,4 +224,6 @@ func main() {
 	_terminate(_cn)
 
 	debug.DEBUGT.Println("FINISH")
+
+	os.Exit(0)
 }

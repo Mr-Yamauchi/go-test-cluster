@@ -97,10 +97,11 @@ type Execrsc struct {
 	op      string
 	ret	int
 	tm   	*time.Timer
+	count	int
 	terminate bool				//Todo : Always false
 }
 //
-func NewExecrsc(rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer)(r *Execrsc)  {
+func NewExecrsc(rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int)(r *Execrsc)  {
 	return &Execrsc {
 		rscid,
 		pid,
@@ -109,6 +110,7 @@ func NewExecrsc(rscid int, pid int, rsc string, parameters []string, op string, 
 		op,
 		ret,
 		tm,
+		count,
 		false,
 	}
 }
@@ -136,7 +138,7 @@ func (rman *Rmanager) isRscTerminate( rscid int ) bool {
 //
 func (rman *Rmanager) setMonitor( rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool)(t *time.Timer) {
 
-	rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, nil)
+	rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, nil, 1)
 
 	_tm := time.AfterFunc(
 		time.Duration(interval) * time.Millisecond, 
@@ -150,7 +152,7 @@ func (rman *Rmanager) setMonitor( rscid int, rsc string, parameters []string, op
 		},
 	)
 
-	rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, _tm)
+	rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, _tm, 1)
 
 	return _tm
 }
@@ -175,7 +177,7 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 			}
 
 		}
-		rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, nil)
+		rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, nil, 0)
 	}
 
 	// Delay.
@@ -211,7 +213,7 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 		if err != nil || _p.Pid < 0 {
                        	debug.DEBUGT.Println("cannot fork child:", rsc, err, procAttr.Env)
 
-			_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_NOT_FORK, nil)
+			_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_NOT_FORK, nil, 0)
 
 			return
               	} else {
@@ -222,42 +224,59 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 		_tm := time.AfterFunc(
 			time.Duration(timeout) * time.Millisecond, 
 			func() {
-				_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_ERROR, nil)
+				_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_ERROR, nil, 0)
 			})
 						
 		// Wait.....
 		_s, err := _p.Wait()
 		_tm.Stop()
 
-		//
+		// OK ? ERROR ?
 		ret := consts.CL_ERROR
 		if _s.Exited() && _s.Success() {
 			ret = consts.CL_NORMAL_END
 		}
-		_c <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, ret, nil)
+		
+		//
+		cnt := 0
+		if _, ok := rman.onRsc[rscid]; ok {
+			cnt = rman.onRsc[rscid].count 
+		}
+		_c <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, ret, nil, cnt)
+		if _s.Success() == false {
+			fmt.Println("---Success() ---> FALSE channel set")
+		}
 	}()
 
 	// goruoutine for sync/async and manage timeout.
 	waitChildFunc := func()(exe Execrsc) {
 		var r Execrsc
 		select {
-			case r = <-_c : 
+			case r = <- _c : 
 				if  !rman.isRscTerminate(r.rscid) {
-					fmt.Println("child terminated.", r)
-					rman.rscOp_ch <- r
+					fmt.Println("child terminated :", r)
+					if r.op == "monitor" && r.count > 0 && r.ret == consts.CL_NORMAL_END && interval > 0 {
+						fmt.Println("not send complete monitor to controller") 
+					} else {
+						select {
+							case rman.rscOp_ch <- r :
+						}
+					}
 				}
-			case r = <-_t : 
+			case r = <- _t : 
 				fmt.Println("timeour occurred.", r)
 				if err := syscall.Kill(r.pid, syscall.SIGKILL); err != nil {
 					fmt.Println("cannnot child kill:",err.Error())
 				} else {
 					fmt.Println("child kill:",r.rsc)
 				}
-				rman.rscOp_ch <- r
+				select {
+					case rman.rscOp_ch <- r :
+				}
 		}
 
 		// Set of the repetition of the monitor.
-		if r.ret == 0 && interval > 0 {
+		if r.ret == consts.CL_NORMAL_END && interval > 0 {
 			rman.setMonitor(rscid, rsc, parameters, op, interval, timeout, delayMs, async)	
 		}	
 

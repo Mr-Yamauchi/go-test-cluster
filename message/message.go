@@ -53,6 +53,7 @@ type MessageResourceControllResponse struct {
 	Rscid	      int	    `json:"rscid"`
 	Operation     string        `json:"operation"`
 	Resource_Name string        `json:"resource_name"`
+	ResultCode   int	    `json:"resultcode"`
 	Message string        `json:"messge"`
 }
 

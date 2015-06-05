@@ -2,22 +2,25 @@ package ipcc
 
 import (
 	consts "../consts"
-	"fmt"
 	"io"
 	"log"
 	"net"
-	"time"
 )
 
 //
+/*
 type IpcClient interface {
 	Run(sch chan string, rch chan string)
 }
+*/
 
 type IpcClientController struct {
 	sockFiles  string
-	conn       net.Conn
-	ipcrecv_ch chan interface{}
+	conn       	net.Conn
+	ipcrecv_ch 	chan interface{}
+	send_ch 	chan string
+	read_ch 	chan string
+	write_ch 	chan string
 }
 
 //
@@ -28,16 +31,36 @@ func (ipcc *IpcClientController) reader(r io.Reader, ch chan string) {
 		if err != nil {
 			return
 		}
-		ch <- string(_buf[0:n])
+		select {
+			case ch <- string(_buf[0:n]):
+		}
 	}
 }
 
 //
-func (ipcc *IpcClientController) TestPrint() {
-	fmt.Println("IpcClientController")
+func (ipcc *IpcClientController) writer(c net.Conn, ch chan string ) {
+	for {
+		var _msg string = ""
+		//
+		select {
+			case _msg = <- ch:
+		}
+		_, err := c.Write([]byte(_msg))
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 //
+/*
+func (ipcc *IpcClientController) TestPrint() {
+	fmt.Println("IpcClientController")
+}
+*/
+
+//
+/*
 func (ipcc *IpcClientController) ipcClientStart(ch chan string) {
 	_c, err := net.Dial("unix", ipcc.sockFiles)
 	if err != nil {
@@ -49,25 +72,28 @@ func (ipcc *IpcClientController) ipcClientStart(ch chan string) {
 			log.Println("close error")
 		}
 	}()
-	//
+
+	// Start reader.
 	go ipcc.reader(_c, ch)
-	//
+	
+	// Start writer loop.
 	for {
 		var _msg string = ""
 		//
 		select {
-		case _msg = <-ch:
-		default:
-			_msg = "hi"
+			case _msg = <- ch:
+			//default:
+			//	_msg = "hi"
 		}
 		_, err := _c.Write([]byte(_msg))
 		if err != nil {
 			log.Println(err)
 			//break
 		}
-		time.Sleep(1e9)
+		//time.Sleep(1e9)
 	}
 }
+*/
 
 //
 func (ipcc *IpcClientController) Connect() net.Conn {
@@ -86,12 +112,14 @@ func (ipcc *IpcClientController) Disconnect() {
 		if err := ipcc.conn.Close(); err != nil {
 			log.Println(err)
 		}
+		ipcc.conn = nil	
 	}
 }
 
-//
+/*
+//Todo : SendRecvとの統合が可能なので統合
 func (ipcc *IpcClientController) SendRecvAsync(msg []byte) int {
-
+	//Todo : ２つのAsyncが来た時に問題あり
 	if ipcc.conn != nil {
 		ipcc.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
@@ -112,7 +140,9 @@ func (ipcc *IpcClientController) SendRecvAsync(msg []byte) int {
 			log.Println(err)
 			ipcc.ipcrecv_ch <- ""
 		}
-		ipcc.ipcrecv_ch <- string(_buf[0:n])
+		select {
+			case ipcc.ipcrecv_ch <- string(_buf[0:n]):
+		}
 	}()
 
 	return 0
@@ -143,11 +173,47 @@ func (ipcc *IpcClientController) SendRecv(msg []byte) string {
 	log.Println("cannnot send : not conneccted")
 	return ""
 }
+*/
+//
+func (ipcc *IpcClientController) SendRecvAsync2(msg []byte) int {
+	select {
+		case ipcc.send_ch <- string(msg): 
+	}
+	return 0
+}
+//
+func (ipcc *IpcClientController) Run2() {
 
+	ipcc.send_ch = make(chan string , 12)
+	ipcc.read_ch = make(chan string, 12)
+	ipcc.write_ch = make(chan string, 12)
+
+	// Start reader.
+	go ipcc.reader(ipcc.conn, ipcc.read_ch)
+
+	// Start writer
+	go ipcc.writer(ipcc.conn, ipcc.write_ch)
+// Todo : 同期送信をどうする?
+	//
+	go func() {
+		for {
+			select {
+				case _r  := <- ipcc.read_ch:
+					ipcc.ipcrecv_ch <- _r
+				case _w  := <- ipcc.send_ch:
+					ipcc.write_ch <- _w
+			}
+		}
+	}()
+	
+}
+
+/*
 //
 func (ipcc *IpcClientController) Run(sch chan string, rch chan string) {
 	go ipcc.ipcClientStart(sch)
 }
+*/
 
 //
 func (ipcc *IpcClientController) GetReceiveChannel() chan interface{} {
@@ -158,6 +224,6 @@ func (ipcc *IpcClientController) GetReceiveChannel() chan interface{} {
 func New(sf string) *IpcClientController {
 	return &IpcClientController{
 		sockFiles:  sf,
-		ipcrecv_ch: make(chan interface{}),
+		ipcrecv_ch: make(chan interface{}, 12),
 	}
 }

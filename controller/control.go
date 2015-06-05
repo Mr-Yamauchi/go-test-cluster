@@ -26,6 +26,8 @@ type Controll struct {
 	//
 	base.BaseControll
 	//
+	nodeid		uint
+	//
 	status        consts.StatusId
 	ipcSrvRecv_ch chan interface{}
 	ipcClient_ch  chan interface{}
@@ -43,6 +45,9 @@ type Controll struct {
 func (cnt *Controll) Init(
 	runfn RunFunc,
 	ipcsv ipcs.IpcServer) int {
+
+	//
+	cnt.nodeid = 0
 	//
 	cnt.status = consts.STARTUP
 	// Make Chanel
@@ -138,6 +143,7 @@ func (cnt *Controll) _resourceControl() int {
 			},
 		},
 		}
+/*
 		case 3 : 
 		_request = mes.MessageResourceControllRequest{
 		Header: mes.MessageHeader{
@@ -160,16 +166,19 @@ func (cnt *Controll) _resourceControl() int {
 			},
 		},
 		}
+*/
 		default : 
 			send = false
 	}
 	//
 	if send {
-		cnt.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+		cnt.rmanConnect.SendRecvAsync2(mes.MakeMessage(_request))
 		step = step + 1
+		return 1
+	} else {
+		// None Operation.
+		return 0
 	}
-	//
-	return 0
 }
 
 //

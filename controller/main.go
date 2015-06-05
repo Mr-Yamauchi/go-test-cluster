@@ -124,13 +124,17 @@ func _processStatus(ci interface{}, data interface{}) {
 					Message: "HELLO",
 				}
 				//Send Hello Request.
-				ct.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+				ct.rmanConnect.SendRecvAsync2(mes.MakeMessage(_request))
 			case consts.ALL_CLIENT_UP:
 			case consts.LOAD_RESOURCE_SETTING:
 			case consts.CONTROL_RESOURCE:
-				ct._resourceControl()
+				if _r := ct._resourceControl(); _r == 0 {
+					ct.Status_ch <- consts.OPERATIONAL
+				}
 			case consts.PENDING:
 			case consts.OPERATIONAL:
+				//waiting.....
+				fmt.Println("Waiting Event.....")
 			}
 		default:
 		}
@@ -157,11 +161,17 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 					log.Println("Unmarshal ERROR" + err.Error())
 					return
 				}
-				fmt.Println("IPC RECEIVE from Server(1) :", data)
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", data)
 				ct.Status_ch <- consts.CONTROL_RESOURCE
 			case mes.MESSAGE_ID_HELLO:
-				fmt.Println("IPC RECEIVE from Server(2) :", data)
-				ct.Status_ch <- consts.CONTROL_RESOURCE
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", data)
+				fmt.Println("NODEID : ", ct.nodeid)
+				if ct.nodeid != 0 {
+					ct.Status_ch <- consts.CONTROL_RESOURCE
+				} else {
+					ct.Status_ch <- consts.STARTUP
+				}
+
 			default:
 				fmt.Println("IPC RECEIVE from Server(3) :", data)
 			}
@@ -191,8 +201,14 @@ func _initialize() (*Controll, *ChildControll) {
 
 	// Rmanager Connect
 	_cn.rmanConnect = ipcc.New("/tmp/rmanager.sock")
-	_cn.rmanConnect.Connect()
+	_con := _cn.rmanConnect.Connect()
+	if _con == nil {
+		fmt.Println("Cannnot Rmanager connect!")
+		return nil, nil
+	}
+
 	_cn.ipcClient_ch = _cn.rmanConnect.GetReceiveChannel()
+	_cn.rmanConnect.Run2()
 
 	// Create Child Control
 	_ch := NewChildControll(
@@ -219,10 +235,18 @@ func _initialize() (*Controll, *ChildControll) {
 
 	return _cn, _ch
 }
-
+//
+func _setNodeid(ci interface{}) {
+	if ct := _isControll(ci); ct != nil {
+		if ct.nodeid == 0 {
+			ct.nodeid = corosync.GetLocalId()
+		}
+	}
+}
 //
 func _processConfchgCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processConfchgCallback")
+	_setNodeid(ci)
 	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
 			case corosync.CorosyncConfchg :
@@ -246,6 +270,7 @@ func _processConfchgCallback(ci interface{}, data interface{}) {
 //
 func _processMsgDeliverCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processMsgDeliverCallback")
+	_setNodeid(ci)
 	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
 			case corosync.CorosyncDeliver: 
@@ -257,6 +282,7 @@ func _processMsgDeliverCallback(ci interface{}, data interface{}) {
 //
 func _processTotemchgCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processTotemchgCallback")
+	_setNodeid(ci)
 	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
 			case corosync.CorosyncTotemchg : 
@@ -280,6 +306,10 @@ func main() {
 
 	// Init
 	_cn, _ch := _initialize()
+	if _cn == nil {
+		// Cannot Connect Process Exit
+		os.Exit(1)
+	}
 
 	// corosync connect Init/set ch handler/Run
 	_chConfchg, _chMsgDeliv, _chTotemchg := corosync.Init();
@@ -289,6 +319,7 @@ func main() {
 		chhandler.New(_chMsgDeliv, _processMsgDeliverCallback))
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_chTotemchg, _processTotemchgCallback))
+
 	//start poll corosync event.
 	corosync.Run();
 
@@ -299,4 +330,6 @@ func main() {
 	_terminate(_cn, _ch)
 
 	debug.DEBUGT.Println("FINISH")
+
+	os.Exit(0)
 }

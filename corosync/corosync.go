@@ -34,11 +34,19 @@ static int show_ip = 0;
 static int restart = 0;
 static uint32_t nodeidStart = 0;
 
+static uint32_t get_cpg_local_id();
 static void sendClusterMessage(char *msg);
 static int runs();
 
 void corosyncDeliverCallback(uint32_t nodeid, uint32_t pid, size_t msg_len, char *msg);
 
+static uint32_t get_cpg_local_id()
+{
+	uint32_t nodeid,
+	result = cpg_local_get(handle, &nodeid);
+	return nodeid;
+
+}
 static void DeliverCallback (
 	cpg_handle_t handle,
 	const struct cpg_name *groupName,
@@ -212,7 +220,6 @@ int runs () {
 				printf ("Could not get local node id\n");
 				retrybackoff(recnt);
 			}
-			printf ("Local node id is %x\n", nodeid);
 			nodeidStart = nodeid;
 
 			retries = 0;
@@ -366,6 +373,10 @@ func SendClusterMessage(msg string) {
 	C.sendClusterMessage(C.CString(msg))
 }
 
+//
+func GetLocalId()(uint) {
+	return uint(C.get_cpg_local_id())
+}
 //
 func Init()(chan interface{}, chan interface{}, chan interface{}) {
 	t1 = make(chan interface{},128)
