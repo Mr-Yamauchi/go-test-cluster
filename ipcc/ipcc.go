@@ -18,9 +18,9 @@ type IpcClientController struct {
 	sockFiles  string
 	conn       	net.Conn
 	ipcrecv_ch 	chan interface{}
-	send_ch 	chan string
+	send_ch 	chan []byte
 	read_ch 	chan string
-	write_ch 	chan string
+	write_ch 	chan []byte
 }
 
 //
@@ -38,14 +38,14 @@ func (ipcc *IpcClientController) reader(r io.Reader, ch chan string) {
 }
 
 //
-func (ipcc *IpcClientController) writer(c net.Conn, ch chan string ) {
+func (ipcc *IpcClientController) writer(c net.Conn, ch chan []byte ) {
 	for {
-		var _msg string = ""
+		var _msg []byte
 		//
 		select {
 			case _msg = <- ch:
 		}
-		_, err := c.Write([]byte(_msg))
+		_, err := c.Write(_msg)
 		if err != nil {
 			log.Println(err)
 		}
@@ -177,16 +177,16 @@ func (ipcc *IpcClientController) SendRecv(msg []byte) string {
 //
 func (ipcc *IpcClientController) SendRecvAsync2(msg []byte) int {
 	select {
-		case ipcc.send_ch <- string(msg): 
+		case ipcc.send_ch <- msg: 
 	}
 	return 0
 }
 //
 func (ipcc *IpcClientController) Run2() {
 
-	ipcc.send_ch = make(chan string , 12)
+	ipcc.send_ch = make(chan []byte , 12)
 	ipcc.read_ch = make(chan string, 12)
-	ipcc.write_ch = make(chan string, 12)
+	ipcc.write_ch = make(chan []byte, 12)
 
 	// Start reader.
 	go ipcc.reader(ipcc.conn, ipcc.read_ch)

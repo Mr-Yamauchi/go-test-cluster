@@ -110,7 +110,7 @@ func (cnt *Controll) _resourceControl() int {
 		Rscid : 1,
 		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
 		Interval : 0,
-		Timeout	: 20,
+		Timeout	: 30000,
 		Delay : 0,	
 		Async : false,
 		ParamLen : 1,
