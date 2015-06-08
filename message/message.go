@@ -17,6 +17,7 @@ const (
 
 //
 type MessageHeader struct {
+	SeqNo	       uint64 `json:"seqno"`
 	Destination_id int `json:"destination_id"`
 	Source_id      int `json:"source_id"`
 	Types          int `json:"types"`

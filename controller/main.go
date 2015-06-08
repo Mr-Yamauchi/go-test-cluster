@@ -47,6 +47,7 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 		//Hello Response Send to Client
 		_response := mes.MessageHello{
 			Header: mes.MessageHeader{
+				SeqNo : 0,
 				Destination_id: head.Header.Source_id,
 				Source_id:      int(consts.CONTROLLER_ID),
 				Types:          int(mes.MESSAGE_ID_HELLO),
@@ -75,7 +76,7 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 		case *ipcs.ClientConnect:
 			fmt.Println("RECV(ClientConnect) : " + string(_v.Message))
 			//
-			_recv_mes := []byte(_v.Message)
+			_recv_mes := _v.Message
 			var _head mes.MessageCommon
 			if err := json.Unmarshal(_recv_mes, &_head); err != nil {
 				fmt.Println("unmarshal ERROR" + err.Error())
@@ -116,6 +117,7 @@ func _processStatus(ci interface{}, data interface{}) {
 				//Make Hello Request.
 				_request := mes.MessageHello{
 					Header: mes.MessageHeader{
+						SeqNo : 0,
 						Destination_id: int(consts.RMANAGER_ID),
 						Source_id:      int(consts.CONTROLLER_ID),
 						Types:          int(mes.MESSAGE_ID_HELLO),
@@ -146,8 +148,9 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 	//
 	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
-		case string:
-			_recv_mes := []byte(_v)
+		case []byte:
+		//	_recv_mes := []byte(_v)
+			_recv_mes := _v
 			var _head mes.MessageCommon
 
 			if err := json.Unmarshal(_recv_mes, &_head); err != nil {
@@ -161,10 +164,10 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 					log.Println("Unmarshal ERROR" + err.Error())
 					return
 				}
-				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", data)
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", string(_v))
 				ct.Status_ch <- consts.CONTROL_RESOURCE
 			case mes.MESSAGE_ID_HELLO:
-				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", data)
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", string(_v))
 				fmt.Println("NODEID : ", ct.nodeid)
 				if ct.nodeid != 0 {
 					ct.Status_ch <- consts.CONTROL_RESOURCE
@@ -173,7 +176,7 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 				}
 
 			default:
-				fmt.Println("IPC RECEIVE from Server(3) :", data)
+				fmt.Println("IPC RECEIVE from Server(3) :", string(_v))
 			}
 		default:
 		}

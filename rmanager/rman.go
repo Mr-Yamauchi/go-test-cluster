@@ -90,6 +90,7 @@ func (rman *Rmanager) Run(list chhandler.ChannelHandler)(int, error) {
 
 //
 type Execrsc struct {
+	seqno   uint64
 	rscid 	int
 	pid 	int
 	rsc	string	
@@ -101,8 +102,9 @@ type Execrsc struct {
 	terminate bool				//Todo : Always false
 }
 //
-func NewExecrsc(rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int)(r *Execrsc)  {
+func NewExecrsc(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int)(r *Execrsc)  {
 	return &Execrsc {
+		seqno,
 		rscid,
 		pid,
 		rsc,		
@@ -136,9 +138,9 @@ func (rman *Rmanager) isRscTerminate( rscid int ) bool {
 }
 
 //
-func (rman *Rmanager) setMonitor( rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool)(t *time.Timer) {
+func (rman *Rmanager) setMonitor( seqno uint64, rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool)(t *time.Timer) {
 
-	rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, nil, 1)
+	rman.onRsc[rscid] = NewExecrsc(seqno, rscid, 0, rsc, parameters, op, 0, nil, 1)
 
 	_tm := time.AfterFunc(
 		time.Duration(interval) * time.Millisecond, 
@@ -146,19 +148,19 @@ func (rman *Rmanager) setMonitor( rscid int, rsc string, parameters []string, op
 			if _, ok := rman.onRsc[rscid]; ok {
 				r := rman.onRsc[rscid]	
 				if r.op != "stop" {
-					rman.ExecRscOp(rscid, rsc, parameters, op, interval, timeout, delayMs, true)
+					rman.ExecRscOp(seqno, rscid, rsc, parameters, op, interval, timeout, delayMs, true)
 				}
 			}
 		},
 	)
 
-	rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, _tm, 1)
+	rman.onRsc[rscid] = NewExecrsc(seqno, rscid, 0, rsc, parameters, op, 0, _tm, 1)
 
 	return _tm
 }
 
 //
-func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool) {
+func (rman *Rmanager) ExecRscOp( seqno uint64, rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool) {
 
 	// Make channel for finish RA Prooess. 
 	_c := make(chan Execrsc, 128)
@@ -177,7 +179,7 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 			}
 
 		}
-		rman.onRsc[rscid] = NewExecrsc(rscid, 0, rsc, parameters, op, 0, nil, 0)
+		rman.onRsc[rscid] = NewExecrsc(seqno, rscid, 0, rsc, parameters, op, 0, nil, 0)
 	}
 
 	// Delay.
@@ -213,7 +215,7 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 		if err != nil || _p.Pid < 0 {
                        	debug.DEBUGT.Println("cannot fork child:", rsc, err, procAttr.Env)
 
-			_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_NOT_FORK, nil, 0)
+			_t <- *NewExecrsc(seqno, rscid, _p.Pid, rsc, parameters, op, consts.CL_NOT_FORK, nil, 0)
 
 			return
               	} else {
@@ -224,7 +226,7 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 		_tm := time.AfterFunc(
 			time.Duration(timeout) * time.Millisecond, 
 			func() {
-				_t <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, consts.CL_ERROR, nil, 0)
+				_t <- *NewExecrsc(seqno, rscid, _p.Pid, rsc, parameters, op, consts.CL_ERROR, nil, 0)
 			})
 						
 		// Wait.....
@@ -242,7 +244,7 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 		if _, ok := rman.onRsc[rscid]; ok {
 			cnt = rman.onRsc[rscid].count 
 		}
-		_c <- *NewExecrsc(rscid, _p.Pid, rsc, parameters, op, ret, nil, cnt)
+		_c <- *NewExecrsc(seqno, rscid, _p.Pid, rsc, parameters, op, ret, nil, cnt)
 		if _s.Success() == false {
 			fmt.Println("---Success() ---> FALSE channel set")
 		}
@@ -277,7 +279,7 @@ func (rman *Rmanager) ExecRscOp( rscid int, rsc string, parameters []string, op 
 
 		// Set of the repetition of the monitor.
 		if r.ret == consts.CL_NORMAL_END && interval > 0 {
-			rman.setMonitor(rscid, rsc, parameters, op, interval, timeout, delayMs, async)	
+			rman.setMonitor(seqno, rscid, rsc, parameters, op, interval, timeout, delayMs, async)	
 		}	
 
 		rman.setRscTerminate(rscid, op)

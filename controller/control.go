@@ -102,6 +102,7 @@ func (cnt *Controll) _resourceControl() int {
 		case 1 :
 		_request = mes.MessageResourceControllRequest{
 		Header: mes.MessageHeader{
+			SeqNo:		 cnt.rmanConnect.GetSeqno(),
 			Destination_id: int(consts.RMANAGER_ID),
 			Source_id:      int(consts.CONTROLLER_ID),
 			Types:          int(mes.MESSAGE_ID_RESOUCE),
@@ -124,6 +125,7 @@ func (cnt *Controll) _resourceControl() int {
 		case 2 :
 		_request = mes.MessageResourceControllRequest{
 		Header: mes.MessageHeader{
+			SeqNo:		 cnt.rmanConnect.GetSeqno(),
 			Destination_id: int(consts.RMANAGER_ID),
 			Source_id:      int(consts.CONTROLLER_ID),
 			Types:          int(mes.MESSAGE_ID_RESOUCE),
@@ -147,6 +149,7 @@ func (cnt *Controll) _resourceControl() int {
 		case 3 : 
 		_request = mes.MessageResourceControllRequest{
 		Header: mes.MessageHeader{
+			SeqNo:		 cnt.rmanConnect.GetSeqno(),
 			Destination_id: int(consts.RMANAGER_ID),
 			Source_id:      int(consts.CONTROLLER_ID),
 			Types:          int(mes.MESSAGE_ID_RESOUCE),
@@ -172,7 +175,8 @@ func (cnt *Controll) _resourceControl() int {
 	}
 	//
 	if send {
-		cnt.rmanConnect.SendRecvAsync2(mes.MakeMessage(_request))
+		//cnt.rmanConnect.SendRecvAsync2(mes.MakeMessage(_request))
+		cnt.rmanConnect.SendRecv2(mes.MakeMessage(_request), 20000, _request.Header.SeqNo)
 		step = step + 1
 		return 1
 	} else {

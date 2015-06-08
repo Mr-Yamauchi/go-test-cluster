@@ -44,6 +44,7 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 		//Hello Response Send to Client
 		_response := mes.MessageHello{
 			Header: mes.MessageHeader{
+				SeqNo : head.Header.SeqNo,
 				Destination_id: head.Header.Source_id,
 				Source_id:      int(consts.CONTROLLER_ID),
 				Types:          int(mes.MESSAGE_ID_HELLO),
@@ -89,7 +90,7 @@ func _processRscOpMessage(ci interface{}, data interface{}) {
 				debug.DEBUGT.Println(_v.ParamLen)
 				debug.DEBUGT.Println(_v.Parameters)
 
-				ct.ExecRscOp(2, _v.Resource_Name, mes.ParametersToString(_v.ParamLen, _v.Parameters), _v.Operation, _v.Interval, _v.Timeout, _v.Delay, _v.Async)
+				ct.ExecRscOp(_v.Header.SeqNo, _v.Rscid, _v.Resource_Name, mes.ParametersToString(_v.ParamLen, _v.Parameters), _v.Operation, _v.Interval, _v.Timeout, _v.Delay, _v.Async)
 			default : 
 				debug.DEBUGT.Println("unknown message receive")
 			
@@ -107,6 +108,7 @@ func _processRscOpEvent(ci interface{}, data interface{}) {
                 		//MessageResourceControll Response Send to Client
 		                _response := mes.MessageResourceControllResponse {
                         		Header: mes.MessageHeader{
+						SeqNo : _v.seqno,
                                 		Destination_id: int(consts.CONTROLLER_ID),
                                 		Source_id:      int(consts.RMANAGER_ID),
                                 		Types:          int(mes.MESSAGE_ID_RESOUCE_RESPONSE),
@@ -143,7 +145,7 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 		case *ipcs.ClientConnect:
 			fmt.Println("RECV(ClientConnect) : " + string(_v.Message))
 			//
-			_recv_mes := []byte(_v.Message)
+			_recv_mes := _v.Message
 			var _head mes.MessageCommon
 			if err := json.Unmarshal(_recv_mes, &_head); err != nil {
 				fmt.Println("unmarshal ERROR" + err.Error())
