@@ -1,7 +1,7 @@
 package corosync
 
 /*
-#cgo LDFLAGS: -lcpg
+#cgo LDFLAGS: -lcpg -lquorum
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -23,16 +23,49 @@ package corosync
 
 #include <corosync/corotypes.h>
 #include <corosync/cpg.h>
+#include <corosync/quorum.h>
 
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
 #endif
 
+#define retrybackoff(counter) {    \
+		counter++;                    \
+		printf("Restart operation after %ds\n", counter); \
+		sleep((unsigned int)counter);               \
+		restart = 1;			\
+		continue;			\
+}
+
+#define cs_repeat_init(counter, max, code) do {    \
+	code;                                 \
+	if (result == CS_ERR_TRY_AGAIN || result == CS_ERR_QUEUE_FULL || result == CS_ERR_LIBRARY) {  \
+		counter++;                    \
+		printf("Retrying operation after %ds\n", counter); \
+		sleep((unsigned int)counter);               \
+	} else {                              \
+		break;                        \
+	}                                     \
+} while (counter < max)
+
+#define cs_repeat(counter, max, code) do {    \
+	code;                                 \
+	if (result == CS_ERR_TRY_AGAIN || result == CS_ERR_QUEUE_FULL) {  \
+		counter++;                    \
+		printf("Retrying operation after %ds\n", counter); \
+		sleep((unsigned int)counter);               \
+	} else {                              \
+		break;                        \
+	}                                     \
+} while (counter < max)
+
 static cpg_handle_t handle;
+static quorum_handle_t q_handle;
 static int quit = 0;
 static int show_ip = 0;
 static int restart = 0;
 static uint32_t nodeidStart = 0;
+static int have_quorum = 0;
 
 static uint32_t get_cpg_local_id();
 static void sendClusterMessage(char *msg);
@@ -140,38 +173,23 @@ static cpg_model_v1_data_t model_data = {
 	.flags =                     CPG_MODEL_V1_DELIVER_INITIAL_TOTEM_CONF,
 };
 
+void corosyncQuorumchgCallback(uint32_t quorate);
+static void
+quorum_notification(quorum_handle_t handle,
+        uint32_t quorate,
+        uint64_t ring_id, uint32_t view_list_entries, uint32_t * view_list) {
+
+	//
+	corosyncQuorumchgCallback(quorate);
+	
+}
+static quorum_callbacks_t quorum_callback = {
+	.quorum_notify_fn = quorum_notification
+};
+
 static struct cpg_name group_name;
 
-#define retrybackoff(counter) {    \
-		counter++;                    \
-		printf("Restart operation after %ds\n", counter); \
-		sleep((unsigned int)counter);               \
-		restart = 1;			\
-		continue;			\
-}
-
-#define cs_repeat_init(counter, max, code) do {    \
-	code;                                 \
-	if (result == CS_ERR_TRY_AGAIN || result == CS_ERR_QUEUE_FULL || result == CS_ERR_LIBRARY) {  \
-		counter++;                    \
-		printf("Retrying operation after %ds\n", counter); \
-		sleep((unsigned int)counter);               \
-	} else {                              \
-		break;                        \
-	}                                     \
-} while (counter < max)
-
-#define cs_repeat(counter, max, code) do {    \
-	code;                                 \
-	if (result == CS_ERR_TRY_AGAIN || result == CS_ERR_QUEUE_FULL) {  \
-		counter++;                    \
-		printf("Retrying operation after %ds\n", counter); \
-		sleep((unsigned int)counter);               \
-	} else {                              \
-		break;                        \
-	}                                     \
-} while (counter < max)
-
+//
 void sendClusterMessage(char *msg){ 
 	char inbuf[132];
 	struct iovec iov;
@@ -180,10 +198,34 @@ void sendClusterMessage(char *msg){
 	iov.iov_len = strlen(msg)+1;
 	cpg_mcast_joined(handle, CPG_TYPE_AGREED, &iov, 1);
 }
+//
+static int connect_quorum( quorum_handle_t *h ) {
+	int rc;
+	uint32_t type = 0;
+	int quorate = 0;
+
+	
+	if ( CS_OK != (rc = quorum_initialize(h, &quorum_callback, &type))) goto exit_label;
+
+	if ( type != QUORUM_SET ) goto exit_label;
+	
+	if ( CS_OK != (rc = quorum_getquorate(*h, &quorate))) goto exit_label;
+
+    	if ( CS_OK != (rc = quorum_trackstart(*h, CS_TRACK_CHANGES | CS_TRACK_CURRENT))) goto exit_label;
+ 
+exit_label:
+	if ( rc != CS_OK) {
+		printf("ERROR");
+	}
+
+	return(rc);
+}
 
 int runs () {
 	fd_set read_fds;
+	int max_fd = 0;
 	int select_fd;
+	int select_fd_quorum;
 	int result;
 	int retries;
 	const char *options = "i";
@@ -245,19 +287,39 @@ int runs () {
 					member_list[i].pid);
 			}
 #endif
-
 			FD_ZERO (&read_fds);
 			cpg_fd_get(handle, &select_fd);
+
+			result =  connect_quorum(&q_handle);
+			if (result != CS_OK) {
+				perror ("connect_quorum\n");
+			}
+			quorum_fd_get(q_handle, &select_fd_quorum);
+
 		}
 		FD_SET (select_fd, &read_fds);
+		FD_SET (select_fd_quorum, &read_fds);
+		if (select_fd > select_fd_quorum) {  
+			max_fd = select_fd;
+		} else {
+			max_fd = select_fd_quorum;
+		}
 
-		result = select (select_fd + 1, &read_fds, 0, 0, 0);
+		result = select (max_fd + 1, &read_fds, 0, 0, 0);
 		if (result == -1) {
 			perror ("select\n");
 		}
 
 		if (FD_ISSET (select_fd, &read_fds)) {
 			if (cpg_dispatch (handle, CS_DISPATCH_ALL) != CS_OK) {
+				if(doexit) {
+					exit(1);
+				}
+				restart = 1;
+			}
+		}
+		if (FD_ISSET (select_fd_quorum, &read_fds)) {
+			if (quorum_dispatch (q_handle, CS_DISPATCH_ALL) != CS_OK) {
 				if(doexit) {
 					exit(1);
 				}
@@ -282,9 +344,10 @@ import "C"
 import "strings"
 import "../debug"
 
-var t1 chan interface{}
-var t2 chan interface{}
-var t3 chan interface{}
+var coro_cfg_chan chan interface{}
+var coro_deliv_chan chan interface{}
+var coro_totem_chan chan interface{}
+var coro_quorum_chan chan interface{}
 
 //
 type ListData struct {
@@ -318,7 +381,7 @@ func corosyncConfchgCallback(member_list *C.struct_cpg_address, member_list_entr
 		_m.Join_list = append(_m.Join_list, ListData{ uint(p.nodeid), uint(p.pid) })	
 	}
 
-	t1 <- _m
+	coro_cfg_chan <- _m
 }
 
 //
@@ -335,7 +398,7 @@ func corosyncDeliverCallback(nodeid C.uint32_t, pid C.uint32_t, msg_len C.size_t
 	debug.DEBUGT.Println("DeliverCallback: message (len=%d)from %s: %d:%d\n",
 		       msg_len, strings.Trim(C.GoString(msg), "\n"), nodeid, pid)
 
-	t2 <- CorosyncDeliver { 
+	coro_deliv_chan <- CorosyncDeliver { 
 		Nodeid : uint(nodeid), 
 		Pid : uint(pid), 
 		Msg : C.GoString(msg),
@@ -365,7 +428,13 @@ func corosyncTotemchgCallback(ring_id C.struct_cpg_ring_id,
 		p := (*C.uint32_t)(C.getMember2(member_list, C.uint32_t(i)))
 		_m.Member_list = append(_m.Member_list, uint(*p))
 	}
-	t3 <- _m
+	coro_totem_chan <- _m
+}
+
+//Need export for C-call.
+//export corosyncQuorumchgCallback
+func corosyncQuorumchgCallback(quorate C.uint32_t) {
+	coro_quorum_chan <- uint(quorate)
 }
 
 //
@@ -378,11 +447,14 @@ func GetLocalId()(uint) {
 	return uint(C.get_cpg_local_id())
 }
 //
-func Init()(chan interface{}, chan interface{}, chan interface{}) {
-	t1 = make(chan interface{},128)
-	t2 = make(chan interface{},128)
-	t3 = make(chan interface{},128)
-	return t1, t2, t3
+func Init()(chan interface{}, chan interface{}, chan interface{}, chan interface{}) {
+
+	coro_cfg_chan = make(chan interface{},128)
+	coro_deliv_chan = make(chan interface{},128)
+	coro_totem_chan = make(chan interface{},128)
+	coro_quorum_chan = make(chan interface{},128)
+
+	return coro_cfg_chan, coro_deliv_chan, coro_totem_chan, coro_quorum_chan
 }
 
 //

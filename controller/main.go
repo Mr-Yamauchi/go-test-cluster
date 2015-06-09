@@ -296,7 +296,16 @@ func _processTotemchgCallback(ci interface{}, data interface{}) {
 		}
 	}
 }
-
+//
+func _processQuorumchgCallback(ci interface{}, data interface{}) {
+	fmt.Println("_processQuorumchgCallback")
+	if ct := _isControll(ci); ct != nil { 
+		switch _v := data.(type) {
+			case  uint :
+				fmt.Println("Quorate : ", _v)
+		}
+	}
+}
 //
 func _terminate(cn *Controll, ch *ChildControll) {
 	ch.Stop(syscall.SIGTERM)
@@ -315,13 +324,16 @@ func main() {
 	}
 
 	// corosync connect Init/set ch handler/Run
-	_chConfchg, _chMsgDeliv, _chTotemchg := corosync.Init();
+	_chConfchg, _chMsgDeliv, _chTotemchg, _chQuorumchg := corosync.Init();
+
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_chConfchg, _processConfchgCallback))
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_chMsgDeliv, _processMsgDeliverCallback))
 	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
 		chhandler.New(_chTotemchg, _processTotemchgCallback))
+	chhandler.ChannelList = chhandler.SetChannelHandler(chhandler.ChannelList, _cn,
+		chhandler.New(_chQuorumchg, _processQuorumchgCallback))
 
 	//start poll corosync event.
 	corosync.Run();
