@@ -20,7 +20,7 @@ type IpcClientController struct {
 	read_ch 	chan []byte
 	write_ch 	chan []byte
 	sync_mapMutex   *sync.Mutex
-	sync_map	map[uint64]chan[]byte
+	sync_map	map[uint64]chan interface{}
 	seqMutex	*sync.Mutex
 	seqno		uint64
 }
@@ -119,7 +119,7 @@ func (ipcc*IpcClientController) GetSeqno() uint64 {
 type sendInfo struct {
 	seqno uint64
 	msg []byte
-	sch chan []byte	
+	sch chan interface{}
 }
 
 //
@@ -139,9 +139,9 @@ func (ipcc *IpcClientController) SendRecvAsync2(msgs []byte) int {
 //
 func (ipcc *IpcClientController) SendRecv2(msgs []byte, timeout int64, seqno uint64) int {
 
-	var rcv []byte
+	var rcv interface{}
 
-	ch := make(chan []byte)
+	ch := make(chan interface{})
 
 	var send = sendInfo {
 		seqno,
@@ -165,6 +165,11 @@ func (ipcc *IpcClientController) SendRecv2(msgs []byte, timeout int64, seqno uin
 }
 
 //
+type IpcClientMsg struct {
+	Head mes.MessageHeader
+	Orig []byte
+}
+//
 func (ipcc *IpcClientController) Run2() {
 
 	ipcc.send_ch = make(chan sendInfo , 12)
@@ -182,8 +187,7 @@ func (ipcc *IpcClientController) Run2() {
 			select {
 				case _r  := <- ipcc.read_ch:
 					var _head mes.MessageCommon
-					_recv_mes := _r
-					if err := json.Unmarshal(_recv_mes, &_head); err != nil {	
+					if err := json.Unmarshal(_r, &_head); err != nil {	
 						log.Println(err)
 					}
 
@@ -193,10 +197,10 @@ func (ipcc *IpcClientController) Run2() {
 						// Remove map
 						ipcc._removeSyncMap(_head.Header.SeqNo)
 						//Sync Result to channel.
-						_v <- _r		
+						_v <- IpcClientMsg { _head.Header, _r }
 					} else {
 						//Async Result to channel.
-						ipcc.ipcrecv_ch <- _r
+						ipcc.ipcrecv_ch <-  IpcClientMsg { _head.Header, _r }
 					}
 				case _w  := <- ipcc.send_ch:
 					//
@@ -219,7 +223,7 @@ func New(sf string) *IpcClientController {
 		sockFiles:  sf,
 		ipcrecv_ch: make(chan interface{}, 12),
 		sync_mapMutex : new(sync.Mutex),
-		sync_map: make(map[uint64]chan []byte),
+		sync_map: make(map[uint64]chan interface{}),
 		seqMutex : new(sync.Mutex),
 	}
 }

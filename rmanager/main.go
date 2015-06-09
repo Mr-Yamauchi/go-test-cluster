@@ -180,6 +180,11 @@ func _initialize() *Rmanager {
 	errs.CheckErrorPanic(err, "syslog.New Error")
 	log.SetOutput(_logger)
 
+	// Mkdir 
+	if err = os.Mkdir("/var/run/resource-agents/", 0777); err != nil {
+		log.Println(err)
+	}
+
 	// Load Configuration
 	_config := configure.New("../configure/config.json")
 	_config.DumpConfig()

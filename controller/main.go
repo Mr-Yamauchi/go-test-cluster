@@ -148,26 +148,19 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 	//
 	if ct := _isControll(ci); ct != nil {
 		switch _v := data.(type) {
-		case []byte:
-		//	_recv_mes := []byte(_v)
-			_recv_mes := _v
-			var _head mes.MessageCommon
-
-			if err := json.Unmarshal(_recv_mes, &_head); err != nil {
-				fmt.Println("unmarshal ERROR" + err.Error())
-			}
-
-			switch _head.Header.Types {
+		//case []byte:
+		case ipcc.IpcClientMsg :
+			switch _v.Head.Types {
 			case mes.MESSAGE_ID_RESOUCE_RESPONSE:
 				var ms mes.MessageResourceControllResponse
-				if err := json.Unmarshal(_recv_mes, &ms); err != nil {
+				if err := json.Unmarshal(_v.Orig, &ms); err != nil {
 					log.Println("Unmarshal ERROR" + err.Error())
 					return
 				}
-				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", string(_v))
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", string(_v.Orig))
 				ct.Status_ch <- consts.CONTROL_RESOURCE
 			case mes.MESSAGE_ID_HELLO:
-				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", string(_v))
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", string(_v.Orig))
 				fmt.Println("NODEID : ", ct.nodeid)
 				if ct.nodeid != 0 {
 					ct.Status_ch <- consts.CONTROL_RESOURCE
@@ -176,7 +169,7 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 				}
 
 			default:
-				fmt.Println("IPC RECEIVE from Server(3) :", string(_v))
+				fmt.Println("IPC RECEIVE from Server(3) :", string(_v.Orig))
 			}
 		default:
 		}
