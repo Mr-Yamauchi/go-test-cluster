@@ -101,12 +101,13 @@ func (cnt *Controll) _resourceControl() int {
 	switch step {
 		case 1 :
 		_request = mes.MessageResourceControllRequest{
-		Header: mes.MessageHeader{
+		 mes.MessageHeader{
 			SeqNo:		 cnt.rmanConnect.GetSeqno(),
 			Destination_id: int(consts.RMANAGER_ID),
 			Source_id:      int(consts.CONTROLLER_ID),
 			Types:          int(mes.MESSAGE_ID_RESOUCE),
 		},
+		mes.MessageResourceControllRequestBody {
 		Operation:     "start",
 		Rscid : 1,
 		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
@@ -121,15 +122,17 @@ func (cnt *Controll) _resourceControl() int {
 				Value: "0",
 			},
 		},
+		},
 		}
 		case 2 :
 		_request = mes.MessageResourceControllRequest{
-		Header: mes.MessageHeader{
+		 mes.MessageHeader{
 			SeqNo:		 cnt.rmanConnect.GetSeqno(),
 			Destination_id: int(consts.RMANAGER_ID),
 			Source_id:      int(consts.CONTROLLER_ID),
 			Types:          int(mes.MESSAGE_ID_RESOUCE),
 		},
+		mes.MessageResourceControllRequestBody {
 		Operation:     "monitor",
 		Rscid : 1,
 		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
@@ -144,16 +147,18 @@ func (cnt *Controll) _resourceControl() int {
 				Value: "0",
 			},
 		},
+		},
 		}
 /*
 		case 3 : 
 		_request = mes.MessageResourceControllRequest{
-		Header: mes.MessageHeader{
+		mes.MessageHeader{
 			SeqNo:		 cnt.rmanConnect.GetSeqno(),
 			Destination_id: int(consts.RMANAGER_ID),
 			Source_id:      int(consts.CONTROLLER_ID),
 			Types:          int(mes.MESSAGE_ID_RESOUCE),
 		},
+		mes.MessageResourceControllRequestBody {
 		Operation:     "stop",
 		Rscid : 1,
 		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
@@ -168,6 +173,7 @@ func (cnt *Controll) _resourceControl() int {
 				Value: "0",
 			},
 		},
+		},
 		}
 */
 		default : 
@@ -175,8 +181,8 @@ func (cnt *Controll) _resourceControl() int {
 	}
 	//
 	if send {
-		//cnt.rmanConnect.SendRecvAsync2(mes.MakeMessage(_request))
-		cnt.rmanConnect.SendRecv2(mes.MakeMessage(_request), 20000, _request.Header.SeqNo)
+		//cnt.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+		cnt.rmanConnect.SendRecv(mes.MakeMessage(_request), 20000, _request.Header.SeqNo)
 		step = step + 1
 		return 1
 	} else {

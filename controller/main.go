@@ -46,14 +46,16 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 		}
 		//Hello Response Send to Client
 		_response := mes.MessageHello{
-			Header: mes.MessageHeader{
+			mes.MessageHeader{
 				SeqNo : 0,
 				Destination_id: head.Header.Source_id,
 				Source_id:      int(consts.CONTROLLER_ID),
 				Types:          int(mes.MESSAGE_ID_HELLO),
 			},
-			Pid:     os.Getpid(),
-			Message: "HELLO",
+			mes.MessageHelloBody {
+				Pid:     os.Getpid(),
+				Message: "HELLO",
+			},
 		}
 		//
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
@@ -116,17 +118,19 @@ func _processStatus(ci interface{}, data interface{}) {
 				/* TESET */
 				//Make Hello Request.
 				_request := mes.MessageHello{
-					Header: mes.MessageHeader{
+					mes.MessageHeader{
 						SeqNo : 0,
 						Destination_id: int(consts.RMANAGER_ID),
 						Source_id:      int(consts.CONTROLLER_ID),
 						Types:          int(mes.MESSAGE_ID_HELLO),
 					},
-					Pid:     os.Getpid(),
-					Message: "HELLO",
+					mes.MessageHelloBody {
+						Pid:     os.Getpid(),
+						Message: "HELLO",
+					},
 				}
 				//Send Hello Request.
-				ct.rmanConnect.SendRecvAsync2(mes.MakeMessage(_request))
+				ct.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
 			case consts.ALL_CLIENT_UP:
 			case consts.LOAD_RESOURCE_SETTING:
 			case consts.CONTROL_RESOURCE:
@@ -153,14 +157,14 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 			switch _v.Head.Types {
 			case mes.MESSAGE_ID_RESOUCE_RESPONSE:
 				var ms mes.MessageResourceControllResponse
-				if err := json.Unmarshal(_v.Orig, &ms); err != nil {
+				if err := json.Unmarshal(_v.All, &ms); err != nil {
 					log.Println("Unmarshal ERROR" + err.Error())
 					return
 				}
-				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", string(_v.Orig))
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", string(_v.All))
 				ct.Status_ch <- consts.CONTROL_RESOURCE
 			case mes.MESSAGE_ID_HELLO:
-				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", string(_v.Orig))
+				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", string(_v.All))
 				fmt.Println("NODEID : ", ct.nodeid)
 				if ct.nodeid != 0 {
 					ct.Status_ch <- consts.CONTROL_RESOURCE
@@ -169,7 +173,7 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 				}
 
 			default:
-				fmt.Println("IPC RECEIVE from Server(3) :", string(_v.Orig))
+				fmt.Println("IPC RECEIVE from Server(3) :", string(_v.All))
 			}
 		default:
 		}
@@ -204,7 +208,7 @@ func _initialize() (*Controll, *ChildControll) {
 	}
 
 	_cn.ipcClient_ch = _cn.rmanConnect.GetReceiveChannel()
-	_cn.rmanConnect.Run2()
+	_cn.rmanConnect.Run()
 
 	// Create Child Control
 	_ch := NewChildControll(

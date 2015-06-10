@@ -5,7 +5,6 @@ import (
 	"../debug"
 	"../base"
 	"../consts"
-	"fmt"
 	"syscall"
 )
 
@@ -72,7 +71,7 @@ func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
 					case syscall.SIGTERM:
 						ct.GetExitChannel() <- 1
 					case syscall.SIGCHLD:
-						fmt.Println("CHILD EXIT")
+						debug.DEBUGT.Println("CHILD EXIT")
 					default:
 						ct.GetExitChannel() <- 1
 					}

@@ -106,13 +106,15 @@ func (rm *Rmanager) Run() (ret int) {
 	go rm.writer(_c)
 	//Make Hello Request.
 	_request := mes.MessageHello{
-		Header: mes.MessageHeader{
+		mes.MessageHeader{
 			Destination_id: int(consts.CONTROLLER_ID),
 			Source_id:      int(consts.RMANAGER_ID),
 			Types:          int(mes.MESSAGE_ID_HELLO),
 		},
-		Pid:     os.Getpid(),
-		Message: "HELLO",
+		mes.MessageHelloBody {
+			Pid:     os.Getpid(),
+			Message: "HELLO",
+		},
 	}
 	//Send Hello Request.
 	rm.SendMesage(mes.MakeMessage(_request))

@@ -123,7 +123,7 @@ type sendInfo struct {
 }
 
 //
-func (ipcc *IpcClientController) SendRecvAsync2(msgs []byte) int {
+func (ipcc *IpcClientController) SendRecvAsync(msgs []byte) int {
 	var send = sendInfo {
 		0,
 		msgs,
@@ -137,7 +137,7 @@ func (ipcc *IpcClientController) SendRecvAsync2(msgs []byte) int {
 }
 
 //
-func (ipcc *IpcClientController) SendRecv2(msgs []byte, timeout int64, seqno uint64) int {
+func (ipcc *IpcClientController) SendRecv(msgs []byte, timeout int64, seqno uint64) int {
 
 	var rcv interface{}
 
@@ -167,10 +167,10 @@ func (ipcc *IpcClientController) SendRecv2(msgs []byte, timeout int64, seqno uin
 //
 type IpcClientMsg struct {
 	Head mes.MessageHeader
-	Orig []byte
+	All []byte
 }
 //
-func (ipcc *IpcClientController) Run2() {
+func (ipcc *IpcClientController) Run() {
 
 	ipcc.send_ch = make(chan sendInfo , 12)
 	ipcc.read_ch = make(chan []byte, 12)
@@ -190,7 +190,6 @@ func (ipcc *IpcClientController) Run2() {
 					if err := json.Unmarshal(_r, &_head); err != nil {	
 						log.Println(err)
 					}
-
 					//
 					
 					if _v, ok := ipcc.sync_map[_head.Header.SeqNo]; ok {

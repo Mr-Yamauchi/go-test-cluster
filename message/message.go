@@ -24,19 +24,22 @@ type MessageHeader struct {
 }
 type MessageCommon struct {
 	Header MessageHeader `json:"header"`
-	Body   string        `json:"body"`
+	Body   interface{}       `json:"body"`
 }
 type MessageHello struct {
 	Header  MessageHeader `json:"header"`
+	MessageHelloBody      `json:"body"`
+}
+type MessageHelloBody struct {
 	Pid     int           `json:"pid"`
 	Message string        `json:"messge"`
 }
+
 type Parameter struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
-type MessageResourceControllRequest struct {
-	Header        MessageHeader `json:"header"`
+type MessageResourceControllRequestBody struct {
 	Rscid	      int	    `json:"rscid"`
 	Operation     string        `json:"operation"`
 	Resource_Name string        `json:"resource_name"`
@@ -47,15 +50,22 @@ type MessageResourceControllRequest struct {
 	ParamLen      int	    `json:"paramlen"`
 	Parameters    []Parameter   `json:"parameters"`
 }
-
-type MessageResourceControllResponse struct {
+type MessageResourceControllRequest struct {
 	Header        MessageHeader `json:"header"`
+	MessageResourceControllRequestBody      `json:"body"`
+}
+
+type MessageResourceControllResponseBody struct {
 	Pid           int           `json:"pid"`
 	Rscid	      int	    `json:"rscid"`
 	Operation     string        `json:"operation"`
 	Resource_Name string        `json:"resource_name"`
 	ResultCode   int	    `json:"resultcode"`
 	Message string        `json:"messge"`
+}
+type MessageResourceControllResponse struct {
+	Header        MessageHeader `json:"header"`
+	MessageResourceControllResponseBody      `json:"body"`
 }
 
 //

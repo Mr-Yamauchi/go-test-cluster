@@ -43,14 +43,16 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 		}
 		//Hello Response Send to Client
 		_response := mes.MessageHello{
-			Header: mes.MessageHeader{
+			mes.MessageHeader{
 				SeqNo : head.Header.SeqNo,
 				Destination_id: head.Header.Source_id,
 				Source_id:      int(consts.CONTROLLER_ID),
 				Types:          int(mes.MESSAGE_ID_HELLO),
 			},
-			Pid:     os.Getpid(),
-			Message: "HELLO",
+			mes.MessageHelloBody {
+				Pid:     os.Getpid(),
+				Message: "HELLO",
+			},
 		}
 		//
 		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
@@ -107,18 +109,20 @@ func _processRscOpEvent(ci interface{}, data interface{}) {
 				fmt.Println("_processRscOpEvent : ", _v)
                 		//MessageResourceControll Response Send to Client
 		                _response := mes.MessageResourceControllResponse {
-                        		Header: mes.MessageHeader{
+                        		mes.MessageHeader{
 						SeqNo : _v.seqno,
                                 		Destination_id: int(consts.CONTROLLER_ID),
                                 		Source_id:      int(consts.RMANAGER_ID),
                                 		Types:          int(mes.MESSAGE_ID_RESOUCE_RESPONSE),
                         		},
-                        		Pid:     os.Getpid(),
-					Rscid:   _v.rscid,
-					Operation: _v.op,
-					Resource_Name : _v.rsc,
-					ResultCode : _v.ret,
-                        		Message: "OK",
+					mes.MessageResourceControllResponseBody {
+                        			Pid:     os.Getpid(),
+						Rscid:   _v.rscid,
+						Operation: _v.op,
+						Resource_Name : _v.rsc,
+						ResultCode : _v.ret,
+                        			Message: "OK",
+					},
                 		}
                 		//
 		                //
