@@ -25,7 +25,7 @@ func init() {
 
 //
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
-	if ct := _isRmanager(ci); ct != nil {
+	if _ct := _isRmanager(ci); _ct != nil {
 		var ms mes.MessageHello
 		//Recv HelloMessage Unmarshal
 		if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -33,13 +33,13 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 			return
 		}
 		//Add clients map
-		if _, ok := ct.clients[ms.Header.Source_id]; ok {
+		if _, ok := _ct.clients[ms.Header.Source_id]; ok {
 			//Already connect(this means reconnet client)
 			fmt.Printf("already Connect:%d - map replace\n", ms.Header.Source_id)
-			ct.clients[ms.Header.Source_id] = client
-			fmt.Printf("len : %d\n", len(ct.clients))
+			_ct.clients[ms.Header.Source_id] = client
+			fmt.Printf("len : %d\n", len(_ct.clients))
 		} else {
-			ct.clients[ms.Header.Source_id] = client
+			_ct.clients[ms.Header.Source_id] = client
 		}
 		//Hello Response Send to Client
 		_response := mes.MessageHello{
@@ -55,14 +55,14 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 			},
 		}
 		//
-		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
+		_ct.ipcServer.SendIpcToClient(_ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
 		//
 	}
 }
 
 //
 func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
-	if ct := _isRmanager(ci); ct != nil {
+	if _ct := _isRmanager(ci); _ct != nil {
 		var ms mes.MessageResourceControllRequest
 
 		//Recv MessageResourceControll Unmarshal
@@ -73,26 +73,17 @@ func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_me
 		fmt.Println(ms)
 
 		//
-		ct.rscOpRecvMessage_ch <- ms
+		_ct.rscOpRecvMessage_ch <- ms
 	}
 
 }
 //
 func _processRscOpMessage(ci interface{}, data interface{}) {
 	//
-	if ct := _isRmanager(ci); ct != nil {
+	if _ct := _isRmanager(ci); _ct != nil {
 		switch _v := data.(type) {
 			case mes.MessageResourceControllRequest : 
-				debug.DEBUGT.Println(_v.Operation)
-				debug.DEBUGT.Println(_v.Rscid)
-				debug.DEBUGT.Println(_v.Resource_Name)
-				debug.DEBUGT.Println(_v.Timeout)
-				debug.DEBUGT.Println(_v.Delay)
-				debug.DEBUGT.Println(_v.Async)
-				debug.DEBUGT.Println(_v.ParamLen)
-				debug.DEBUGT.Println(_v.Parameters)
-
-				ct.ExecRscOp(_v.Header.SeqNo, _v.Rscid, _v.Resource_Name, mes.ParametersToString(_v.ParamLen, _v.Parameters), _v.Operation, _v.Interval, _v.Timeout, _v.Delay, _v.Async)
+				_ct.ExecRscOp(_v.Header.SeqNo, _v.Rscid, _v.Resource_Name, mes.ParametersToString(_v.ParamLen, _v.Parameters), _v.Operation, _v.Interval, _v.Timeout, _v.Delay, _v.Async)
 			default : 
 				debug.DEBUGT.Println("unknown message receive")
 			
@@ -103,7 +94,7 @@ func _processRscOpMessage(ci interface{}, data interface{}) {
 //
 func _processRscOpEvent(ci interface{}, data interface{}) {
 	fmt.Println("_processRscOpEvent call")
-	if ct := _isRmanager(ci); ct != nil {
+	if _ct := _isRmanager(ci); _ct != nil {
 		switch _v := data.(type) {
 			case Execrsc :
 				fmt.Println("_processRscOpEvent : ", _v)
@@ -126,7 +117,7 @@ func _processRscOpEvent(ci interface{}, data interface{}) {
                 		}
                 		//
 		                //
-		                ct.ipcServer.SendIpcToClient(ct.clients, int(consts.CONTROLLER_ID), mes.MakeMessage(_response))
+		                _ct.ipcServer.SendIpcToClient(_ct.clients, int(consts.CONTROLLER_ID), mes.MakeMessage(_response))
                 //
 		default:
 			log.Println("unknown Event RECV(default)")
@@ -139,7 +130,7 @@ func _processRscOpEvent(ci interface{}, data interface{}) {
 //
 func _processIpcSrvMessage(ci interface{}, data interface{}) {
 	//
-	if ct := _isRmanager(ci); ct != nil {
+	if _ct := _isRmanager(ci); _ct != nil {
 		var _ipcTypeMessageFunc = []*ipcs.IpcTypeMessageHandler{
 			{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
 			{Types: mes.MESSAGE_ID_RESOUCE, Handler: _messageResourceHandler},
@@ -158,7 +149,7 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 			var _processed bool = false
 			for i := 0; i < len(_ipcTypeMessageFunc); i++ {
 				if _ipcTypeMessageFunc[i].Types == _head.Header.Types {
-					_ipcTypeMessageFunc[_head.Header.Types].Handler(ct, _v, _recv_mes, _head)
+					_ipcTypeMessageFunc[_head.Header.Types].Handler(_ct, _v, _recv_mes, _head)
 					_processed = true
 					break
 				}
@@ -179,6 +170,7 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 
 //
 func _initialize() *Rmanager {
+
 	// Setting logging
 	_logger, err := syslog.New(consts.Logpriority, consts.Logtag)
 	errs.CheckErrorPanic(err, "syslog.New Error")

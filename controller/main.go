@@ -28,7 +28,7 @@ func init() {
 //
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
 
-	if ct := _isControll(ci); ct != nil {
+	if _ct := _isControll(ci); _ct != nil {
 		var ms mes.MessageHello
 		//Recv HelloMessage Unmarshal
 		if err := json.Unmarshal(recv_mes, &ms); err != nil {
@@ -36,13 +36,13 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 			return
 		}
 		//Add clients map
-		if _, ok := ct.clients[ms.Header.Source_id]; ok {
+		if _, ok := _ct.clients[ms.Header.Source_id]; ok {
 			//Already connect(this means reconnet client)
 			fmt.Printf("already Connect:%d - map replace\n", ms.Header.Source_id)
-			ct.clients[ms.Header.Source_id] = client
-			fmt.Printf("len : %d\n", len(ct.clients))
+			_ct.clients[ms.Header.Source_id] = client
+			fmt.Printf("len : %d\n", len(_ct.clients))
 		} else {
-			ct.clients[ms.Header.Source_id] = client
+			_ct.clients[ms.Header.Source_id] = client
 		}
 		//Hello Response Send to Client
 		_response := mes.MessageHello{
@@ -58,7 +58,7 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 			},
 		}
 		//
-		ct.ipcServer.SendIpcToClient(ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
+		_ct.ipcServer.SendIpcToClient(_ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
 		//
 	}
 }
@@ -66,7 +66,7 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 //
 func _processIpcSrvMessage(ci interface{}, data interface{}) {
 	//
-	if ct := _isControll(ci); ct != nil {
+	if _ct := _isControll(ci); _ct != nil {
 		//
 		var _ipcTypeMessageFunc = []*ipcs.IpcTypeMessageHandler{
 			{Types: mes.MESSAGE_ID_HELLO, Handler: _messageHelloHandler},
@@ -87,7 +87,7 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 			var _processed bool = false
 			for i := 0; i < len(_ipcTypeMessageFunc); i++ {
 				if _ipcTypeMessageFunc[i].Types == _head.Header.Types {
-					_ipcTypeMessageFunc[_head.Header.Types].Handler(ct, _v, _recv_mes, _head)
+					_ipcTypeMessageFunc[_head.Header.Types].Handler(_ct, _v, _recv_mes, _head)
 					_processed = true
 					break
 				}
@@ -107,13 +107,13 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 
 func _processStatus(ci interface{}, data interface{}) {
 	//
-	if ct := _isControll(ci); ct != nil {
+	if _ct := _isControll(ci); _ct != nil {
 		switch _v := data.(type) {
 		case int:
 			fmt.Println(consts.StatusId(_v))
 			switch _v {
 			case consts.STARTUP:
-				ct.status = consts.ALL_CLIENT_UP
+				_ct.status = consts.ALL_CLIENT_UP
 
 				/* TESET */
 				//Make Hello Request.
@@ -130,12 +130,12 @@ func _processStatus(ci interface{}, data interface{}) {
 					},
 				}
 				//Send Hello Request.
-				ct.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
+				_ct.rmanConnect.SendRecvAsync(mes.MakeMessage(_request))
 			case consts.ALL_CLIENT_UP:
 			case consts.LOAD_RESOURCE_SETTING:
 			case consts.CONTROL_RESOURCE:
-				if _r := ct._resourceControl(); _r == 0 {
-					ct.Status_ch <- consts.OPERATIONAL
+				if _r := _ct._resourceControl(); _r == 0 {
+					_ct.Status_ch <- consts.OPERATIONAL
 				}
 			case consts.PENDING:
 			case consts.OPERATIONAL:
@@ -150,7 +150,7 @@ func _processStatus(ci interface{}, data interface{}) {
 //
 func _processIpcClientMessage(ci interface{}, data interface{}) {
 	//
-	if ct := _isControll(ci); ct != nil {
+	if _ct := _isControll(ci); _ct != nil {
 		switch _v := data.(type) {
 		//case []byte:
 		case ipcc.IpcClientMsg :
@@ -162,14 +162,14 @@ func _processIpcClientMessage(ci interface{}, data interface{}) {
 					return
 				}
 				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_RESOUCE_RESPONSE) :", string(_v.All))
-				ct.Status_ch <- consts.CONTROL_RESOURCE
+				_ct.Status_ch <- consts.CONTROL_RESOURCE
 			case mes.MESSAGE_ID_HELLO:
 				fmt.Println("IPC RECEIVE from Server(MESSAGE_ID_HELLO) :", string(_v.All))
-				fmt.Println("NODEID : ", ct.nodeid)
-				if ct.nodeid != 0 {
-					ct.Status_ch <- consts.CONTROL_RESOURCE
+				fmt.Println("NODEID : ", _ct.nodeid)
+				if _ct.nodeid != 0 {
+					_ct.Status_ch <- consts.CONTROL_RESOURCE
 				} else {
-					ct.Status_ch <- consts.STARTUP
+					_ct.Status_ch <- consts.STARTUP
 				}
 
 			default:
@@ -237,9 +237,9 @@ func _initialize() (*Controll, *ChildControll) {
 }
 //
 func _setNodeid(ci interface{}) {
-	if ct := _isControll(ci); ct != nil {
-		if ct.nodeid == 0 {
-			ct.nodeid = corosync.GetLocalId()
+	if _ct := _isControll(ci); _ct != nil {
+		if _ct.nodeid == 0 {
+			_ct.nodeid = corosync.GetLocalId()
 		}
 	}
 }
@@ -247,7 +247,7 @@ func _setNodeid(ci interface{}) {
 func _processConfchgCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processConfchgCallback")
 	_setNodeid(ci)
-	if ct := _isControll(ci); ct != nil {
+	if _ct := _isControll(ci); _ct != nil {
 		switch _v := data.(type) {
 			case corosync.CorosyncConfchg :
 				fmt.Println("--member_ent :", len(_v.Member_list))
@@ -271,7 +271,7 @@ func _processConfchgCallback(ci interface{}, data interface{}) {
 func _processMsgDeliverCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processMsgDeliverCallback")
 	_setNodeid(ci)
-	if ct := _isControll(ci); ct != nil {
+	if _ct := _isControll(ci); _ct != nil {
 		switch _v := data.(type) {
 			case corosync.CorosyncDeliver: 
 				fmt.Println("_processMsgDeliverCallback msg:", _v.Msg)
@@ -283,7 +283,7 @@ func _processMsgDeliverCallback(ci interface{}, data interface{}) {
 func _processTotemchgCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processTotemchgCallback")
 	_setNodeid(ci)
-	if ct := _isControll(ci); ct != nil {
+	if _ct := _isControll(ci); _ct != nil {
 		switch _v := data.(type) {
 			case corosync.CorosyncTotemchg : 
 				fmt.Println("_processTotemchgCallback() len :", len(_v.Member_list))
@@ -296,7 +296,7 @@ func _processTotemchgCallback(ci interface{}, data interface{}) {
 //
 func _processQuorumchgCallback(ci interface{}, data interface{}) {
 	fmt.Println("_processQuorumchgCallback")
-	if ct := _isControll(ci); ct != nil { 
+	if _ct := _isControll(ci); _ct != nil { 
 		switch _v := data.(type) {
 			case  uint :
 				fmt.Println("Quorate : ", _v)

@@ -136,7 +136,7 @@ func (cnt *Controll) _resourceControl() int {
 		Operation:     "monitor",
 		Rscid : 1,
 		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
-		Interval : 10,
+		Interval : 5000,
 		Timeout	: 20000,
 		Delay : 0,	
 		Async : true,
