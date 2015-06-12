@@ -14,10 +14,13 @@ type ChannelHandlerData struct {
 	handler func(cit interface{}, data interface{})
 }
 
+//
 type ChannelLists []*ChannelHandlerData
 
+//
 var ChannelList ChannelLists
 
+//
 type ChannelHandler interface {
 	GetLen() int
 	Exec(idx int, cit interface{}, data interface{})
@@ -63,7 +66,7 @@ func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
 	go func() {
 		for {
 			ct.Lock()
-			for idx := 0; idx < chData.GetLen(); idx++ {
+			for _idx := 0; _idx < chData.GetLen(); _idx++ {
 				select {
 				case _sig_ch := <-ct.GetSignalChannel():
 					debug.DEBUGT.Println("SIGNALED")
@@ -75,8 +78,8 @@ func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
 					default:
 						ct.GetExitChannel() <- 1
 					}
-				case _ch := <-chData.GetCh(idx):
-					chData.Exec(idx, ct, _ch)
+				case _ch := <-chData.GetCh(_idx):
+					chData.Exec(_idx, ct, _ch)
 				default:
 				}
 			}
@@ -90,3 +93,5 @@ func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
 
 	return
 }
+
+//

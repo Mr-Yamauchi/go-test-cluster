@@ -16,9 +16,9 @@ type IpcClientController struct {
 	sockFiles  string
 	conn       	net.Conn
 	ipcrecv_ch 	chan interface{}
-	send_ch 	chan sendInfo
-	read_ch 	chan []byte
-	write_ch 	chan []byte
+	call_send_ch 	chan sendInfo
+	rcv_read_ch 	chan []byte
+	snd_write_ch 	chan []byte
 	sync_mapMutex   *sync.Mutex
 	sync_map	map[uint64]chan interface{}
 	seqMutex	*sync.Mutex
@@ -26,7 +26,8 @@ type IpcClientController struct {
 }
 
 //
-func (ipcc *IpcClientController) reader(r io.Reader, ch chan []byte) {
+func (ipcc *IpcClientController) receiver(r io.Reader, ch chan []byte) {
+
 	_buf := make([]byte, consts.BUFF_MAX)
 	for {
 		n, err := r.Read(_buf[:])
@@ -41,7 +42,8 @@ func (ipcc *IpcClientController) reader(r io.Reader, ch chan []byte) {
 }
 
 //
-func (ipcc *IpcClientController) writer(c net.Conn, ch chan []byte ) {
+func (ipcc *IpcClientController) sender(c net.Conn, ch chan []byte ) {
+
 	for {
 		var _msg []byte
 		//
@@ -131,37 +133,37 @@ func (ipcc *IpcClientController) SendRecvAsync(msgs []byte) int {
 	}	
 
 	select {
-		case ipcc.send_ch <- send : 
+		case ipcc.call_send_ch <- send : 
 	}
-	return 0
+	return consts.CL_OK
 }
 
 //
 func (ipcc *IpcClientController) SendRecv(msgs []byte, timeout int64, seqno uint64) int {
 
-	var rcv interface{}
+	var _rcv interface{}
 
-	ch := make(chan interface{})
+	_c := make(chan interface{})
 
 	var send = sendInfo {
 		seqno,
 		msgs,
-		ch,
+		_c,
 	}	
 	
 	// send to channel...
 	select {
-		case ipcc.send_ch <- send: 
+		case ipcc.call_send_ch <- send: 
 	}
 
 	// wait Sync..
 	select {
-		case rcv = <- ch:
+		case _rcv = <- _c:
 	}
 
-	ipcc.ipcrecv_ch <- rcv
+	ipcc.ipcrecv_ch <- _rcv
 
-	return 0
+	return consts.CL_OK
 }
 
 //
@@ -172,20 +174,16 @@ type IpcClientMsg struct {
 //
 func (ipcc *IpcClientController) Run() {
 
-	ipcc.send_ch = make(chan sendInfo , 12)
-	ipcc.read_ch = make(chan []byte, 12)
-	ipcc.write_ch = make(chan []byte, 12)
+	// Start receiver.
+	go ipcc.receiver(ipcc.conn, ipcc.rcv_read_ch)
 
-	// Start reader.
-	go ipcc.reader(ipcc.conn, ipcc.read_ch)
-
-	// Start writer
-	go ipcc.writer(ipcc.conn, ipcc.write_ch)
+	// Start sender
+	go ipcc.sender(ipcc.conn, ipcc.snd_write_ch)
 	//
 	go func() {
 		for {
 			select {
-				case _r  := <- ipcc.read_ch:
+				case _r  := <- ipcc.rcv_read_ch:
 					var _head mes.MessageCommon
 					if err := json.Unmarshal(_r, &_head); err != nil {	
 						log.Println(err)
@@ -201,10 +199,10 @@ func (ipcc *IpcClientController) Run() {
 						//Async Result to channel.
 						ipcc.ipcrecv_ch <-  IpcClientMsg { _head.Header, _r }
 					}
-				case _w  := <- ipcc.send_ch:
+				case _w  := <- ipcc.call_send_ch:
 					//
 					ipcc._setSyncMap(_w)
-					ipcc.write_ch <- _w.msg
+					ipcc.snd_write_ch <- _w.msg
 			}
 		}
 	}()
@@ -221,6 +219,9 @@ func New(sf string) *IpcClientController {
 	return &IpcClientController{
 		sockFiles:  sf,
 		ipcrecv_ch: make(chan interface{}, 12),
+		call_send_ch: make(chan sendInfo , 12),
+		rcv_read_ch: make(chan []byte, 12),
+		snd_write_ch: make(chan []byte, 12),
 		sync_mapMutex : new(sync.Mutex),
 		sync_map: make(map[uint64]chan interface{}),
 		seqMutex : new(sync.Mutex),

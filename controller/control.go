@@ -35,7 +35,6 @@ type Controll struct {
 	runFunc       RunFunc
 	ipcServer     ipcs.IpcServer
 	//
-	//
 	clients map[int]*ipcs.ClientConnect
 	//rmanager connect info
 	rmanConnect *ipcc.IpcClientController
@@ -44,7 +43,8 @@ type Controll struct {
 //
 func (cnt *Controll) Init(
 	runfn RunFunc,
-	ipcsv ipcs.IpcServer) int {
+	ipcsv ipcs.IpcServer,
+	rmanc *ipcc.IpcClientController) int {
 
 	//
 	cnt.nodeid = 0
@@ -63,9 +63,12 @@ func (cnt *Controll) Init(
 	cnt.ipcSrvRecv_ch = ipcsv.GetRecvChannel()
 	cnt.ipcServer = ipcsv
 
+	//
+	cnt.rmanConnect = rmanc
+
 	go cnt.ipcServer.Run()
 
-	return 0
+	return consts.CL_OK
 
 }
 
@@ -74,7 +77,7 @@ func (cnt *Controll) Run(list chhandler.ChannelHandler) int {
 	if cnt.runFunc != nil {
 		cnt.runFunc(cnt, list)
 	}
-	return 0
+	return consts.CL_OK
 }
 
 //
@@ -85,7 +88,7 @@ func (cnt *Controll) Terminate() int {
 
 	log.Println("Terminated...")
 
-	return 0
+	return consts.CL_OK
 }
 
 
@@ -99,7 +102,9 @@ func (cnt *Controll) _resourceControl() int {
 	// Todo : Resource placement processing is necessary
 
 	switch step {
+		//
 		case 1 :
+		//
 		_request = mes.MessageResourceControllRequest{
 		 mes.MessageHeader{
 			SeqNo:		 cnt.rmanConnect.GetSeqno(),
@@ -124,7 +129,9 @@ func (cnt *Controll) _resourceControl() int {
 		},
 		},
 		}
+		//
 		case 2 :
+		//
 		_request = mes.MessageResourceControllRequest{
 		 mes.MessageHeader{
 			SeqNo:		 cnt.rmanConnect.GetSeqno(),
@@ -150,7 +157,9 @@ func (cnt *Controll) _resourceControl() int {
 		},
 		}
 /*
+		//
 		case 3 : 
+		//
 		_request = mes.MessageResourceControllRequest{
 		mes.MessageHeader{
 			SeqNo:		 cnt.rmanConnect.GetSeqno(),
@@ -187,17 +196,18 @@ func (cnt *Controll) _resourceControl() int {
 		return 1
 	} else {
 		// None Operation.
-		return 0
+		return consts.CL_OK
 	}
 }
 
 //
 func NewControll(
 	runfn RunFunc,
-	ipcsv ipcs.IpcServer) *Controll {
+	ipcsv ipcs.IpcServer,
+	rmanc *ipcc.IpcClientController) *Controll {
 	//
 	_cn := new(Controll)
-	_cn.Init(runfn, ipcsv)
+	_cn.Init(runfn, ipcsv, rmanc)
 	//
 	return _cn
 }

@@ -26,21 +26,24 @@ func init() {
 //
 func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
 	if _ct := _isRmanager(ci); _ct != nil {
-		var ms mes.MessageHello
+		var _ms mes.MessageHello
+
 		//Recv HelloMessage Unmarshal
-		if err := json.Unmarshal(recv_mes, &ms); err != nil {
-			log.Println("Unmarshal ERROR" + err.Error())
+		if _err := json.Unmarshal(recv_mes, &_ms); _err != nil {
+			log.Println("Unmarshal ERROR" + _err.Error())
 			return
 		}
+
 		//Add clients map
-		if _, ok := _ct.clients[ms.Header.Source_id]; ok {
+		if _, _ok := _ct.clients[_ms.Header.Source_id]; _ok {
 			//Already connect(this means reconnet client)
-			fmt.Printf("already Connect:%d - map replace\n", ms.Header.Source_id)
-			_ct.clients[ms.Header.Source_id] = client
+			fmt.Printf("already Connect:%d - map replace\n", _ms.Header.Source_id)
+			_ct.clients[_ms.Header.Source_id] = client
 			fmt.Printf("len : %d\n", len(_ct.clients))
 		} else {
-			_ct.clients[ms.Header.Source_id] = client
+			_ct.clients[_ms.Header.Source_id] = client
 		}
+
 		//Hello Response Send to Client
 		_response := mes.MessageHello{
 			mes.MessageHeader{
@@ -54,6 +57,7 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 				Message: "HELLO",
 			},
 		}
+
 		//
 		_ct.ipcServer.SendIpcToClient(_ct.clients, head.Header.Source_id, mes.MakeMessage(_response))
 		//
@@ -63,17 +67,17 @@ func _messageHelloHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes [
 //
 func _messageResourceHandler(ci interface{}, client *ipcs.ClientConnect, recv_mes []byte, head mes.MessageCommon) {
 	if _ct := _isRmanager(ci); _ct != nil {
-		var ms mes.MessageResourceControllRequest
+		var _ms mes.MessageResourceControllRequest
 
 		//Recv MessageResourceControll Unmarshal
-		if err := json.Unmarshal(recv_mes, &ms); err != nil {
-			fmt.Println("Unmarshal ERROR" + err.Error())
+		if _err := json.Unmarshal(recv_mes, &_ms); _err != nil {
+			fmt.Println("Unmarshal ERROR" + _err.Error())
 			return
 		}
-		fmt.Println(ms)
+		fmt.Println(_ms)
 
 		//
-		_ct.rscOpRecvMessage_ch <- ms
+		_ct.rscOpRecvMessage_ch <- _ms
 	}
 
 }
@@ -83,7 +87,9 @@ func _processRscOpMessage(ci interface{}, data interface{}) {
 	if _ct := _isRmanager(ci); _ct != nil {
 		switch _v := data.(type) {
 			case mes.MessageResourceControllRequest : 
-				_ct.ExecRscOp(_v.Header.SeqNo, _v.Rscid, _v.Resource_Name, mes.ParametersToString(_v.ParamLen, _v.Parameters), _v.Operation, _v.Interval, _v.Timeout, _v.Delay, _v.Async)
+				_ct.ExecRscOp(_v.Header.SeqNo,
+					 _v.Rscid, _v.Resource_Name,
+					 mes.ParametersToString(_v.ParamLen, _v.Parameters), _v.Operation, _v.Interval, _v.Timeout, _v.Delay, _v.Async)
 			default : 
 				debug.DEBUGT.Println("unknown message receive")
 			
@@ -142,8 +148,8 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 			//
 			_recv_mes := _v.Message
 			var _head mes.MessageCommon
-			if err := json.Unmarshal(_recv_mes, &_head); err != nil {
-				fmt.Println("unmarshal ERROR" + err.Error())
+			if _err := json.Unmarshal(_recv_mes, &_head); _err != nil {
+				fmt.Println("unmarshal ERROR" + _err.Error())
 			}
 			//
 			var _processed bool = false
@@ -172,13 +178,13 @@ func _processIpcSrvMessage(ci interface{}, data interface{}) {
 func _initialize() *Rmanager {
 
 	// Setting logging
-	_logger, err := syslog.New(consts.Logpriority, consts.Logtag)
-	errs.CheckErrorPanic(err, "syslog.New Error")
+	_logger, _err := syslog.New(consts.Logpriority, consts.Logtag)
+	errs.CheckErrorPanic(_err, "syslog.New Error")
 	log.SetOutput(_logger)
 
 	// Mkdir 
-	if err = os.Mkdir("/var/run/resource-agents/", 0777); err != nil {
-		log.Println(err)
+	if _err = os.Mkdir("/var/run/resource-agents/", 0777); _err != nil {
+		log.Println(_err)
 	}
 
 	// Load Configuration

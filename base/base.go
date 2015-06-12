@@ -12,6 +12,8 @@ type LockUnlocker interface {
 	Lock()
 	Unlock()
 }
+
+//
 type BaseController interface {
 	LockUnlocker
 	GetSignalChannel() chan os.Signal

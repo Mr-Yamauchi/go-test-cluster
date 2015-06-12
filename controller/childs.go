@@ -41,19 +41,19 @@ func (chl *ChildControll) Stop(sig syscall.Signal) error {
 
 //
 func NewChildControll(chinfo []ChildInfo, fnStart FuncStart, fnStop FuncStop) *ChildControll {
-	cc := new(ChildControll)
+	_cc := new(ChildControll)
 
-	cc.childs = chinfo
-	cc.funcStart = _childStart
-	cc.funcStop = _childStop
+	_cc.childs = chinfo
+	_cc.funcStart = _childStart
+	_cc.funcStop = _childStop
 	if fnStart != nil {
-		cc.funcStart = fnStart
+		_cc.funcStart = fnStart
 	}
 	if fnStop != nil {
-		cc.funcStop = fnStop
+		_cc.funcStop = fnStop
 	}
 
-	return cc
+	return _cc
 }
 
 //
@@ -61,19 +61,19 @@ func _childStart(ct *ChildControll) error {
 	log.Println("child start")
 	//
 	for i := 0; i < len(ct.childs); i++ {
-		var procAttr os.ProcAttr
-		procAttr.Files = []*os.File{nil, nil, nil}
-		//if _p, err := os.StartProcess(ct.childs[i].path, nil, &procAttr); err != nil || _p.Pid < 0 {
-		if _p, err := os.StartProcess(ct.childs[i].path, []string { "start" }, &procAttr); err != nil || _p.Pid < 0 {
+		var _procAttr os.ProcAttr
+		_procAttr.Files = []*os.File{nil, nil, nil}
+		//
+		if _p, _err := os.StartProcess(ct.childs[i].path, []string { "start" }, &_procAttr); _err != nil || _p.Pid < 0 {
 			log.Printf("cannnot fork child :  path[%s]", ct.childs[i].path)
-			return err
+			return _err
 		} else {
 			log.Printf("child start : path[%s] pid[%d]", ct.childs[i].path, _p.Pid)
 			ct.childs[i].pid = _p.Pid
 		}
-		if _p, err := os.FindProcess(ct.childs[i].pid); _p == nil || err != nil {
+		if _p, _err := os.FindProcess(ct.childs[i].pid); _p == nil || _err != nil {
 			log.Printf("cannnot start child :  path[%s]", ct.childs[i].path)
-			return err
+			return _err
 		}
 	}
 	return nil
@@ -91,16 +91,16 @@ func _childStop(ct *ChildControll, sig syscall.Signal) error {
 	for i := 0; i < len(ct.childs); i++ {
 		if ct.childs[i].pid != 0 {
 			//
-			if _p, err := os.FindProcess(ct.childs[i].pid); _p != nil {
+			if _p, _err := os.FindProcess(ct.childs[i].pid); _p != nil {
 				//
-				if err := syscall.Kill(ct.childs[i].pid, sig); err != nil {
-					log.Println("child cannot stop:" + err.Error())
+				if _err := syscall.Kill(ct.childs[i].pid, sig); _err != nil {
+					log.Println("child cannot stop:" + _err.Error())
 				} else {
 					log.Printf("child stop : path[%s] pid[%d]", ct.childs[i].path, ct.childs[i].pid)
 				}
 				ct.childs[i].pid = 0
-			} else if err != nil {
-				return err
+			} else if _err != nil {
+				return _err
 			} else {
 				log.Printf("child:path[%s] pid[%d] is already dieing.", ct.childs[i].path, ct.childs[i].pid)
 				ct.childs[i].pid = 0

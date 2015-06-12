@@ -9,6 +9,7 @@ import (
 //
 type MessageId int
 
+//
 const (
 	MESSAGE_ID_HELLO = iota
 	MESSAGE_ID_RESOUCE
@@ -80,12 +81,12 @@ func MakeMessage(data interface{}) []byte {
 
 //
 func ParametersToString( len int, p []Parameter )[]string {
-	r := []string {}
+	_r := []string {}
 	for i := 0; i < len; i++ {
-		r = append(r, p[i].Name + "=" + p[i].Value)
-fmt.Println("r = ", r)
+		_r = append(_r, p[i].Name + "=" + p[i].Value)
+		fmt.Println("r = ", _r)
 	}
-	return r
+	return _r
 }
 
 /*
@@ -109,9 +110,9 @@ func main(){
 	fmt.Println(string(MakeMessage(_struct2)))
 
 
-	var t MessageHello
-	if err := json.Unmarshal(MakeMessage(_struct), &t); err != nil {
-		fmt.Println("EERRO"+err.Error())
+	var _t MessageHello
+	if _err := json.Unmarshal(MakeMessage(_struct), &_t); _err != nil {
+		fmt.Println("EERRO"+_err.Error())
 	}
 	fmt.Println(t.Message)
 

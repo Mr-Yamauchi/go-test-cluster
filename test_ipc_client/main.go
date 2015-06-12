@@ -81,20 +81,20 @@ func (rm *Rmanager) Terminate() (ret int) {
 
 //
 func (rm *Rmanager) connect() net.Conn {
-	_c, err := net.Dial("unix", "/tmp/controller.sock")
-	if err != nil {
+	_c, _err := net.Dial("unix", "/tmp/controller.sock")
+	if _err != nil {
 		log.Println("Cannot connect IPC...")
 
 		for i := 0; i < 3; i++ {
 			log.Println("Reconnect.....")
 			time.Sleep(3 * time.Second)
-			_c, err = net.Dial("unix", "/tmp/echo.sock")
-			if err == nil {
+			_c, _err = net.Dial("unix", "/tmp/echo.sock")
+			if _err == nil {
 				break
 			}
 		}
 	}
-	CommonError.CheckErrorPanic(err, "Dial Error")
+	CommonError.CheckErrorPanic(_err, "Dial Error")
 	return _c
 }
 
@@ -148,9 +148,9 @@ func (rm *Rmanager) Run() (ret int) {
 func (rm *Rmanager) reader(r io.Reader) {
 	for {
 		_buf := make([]byte, consts.BUFF_MAX)
-		_nr, err := r.Read(_buf[:])
-		CommonError.CheckError(err, "Read ERROR")
-		if err != nil {
+		_nr, _err := r.Read(_buf[:])
+		CommonError.CheckError(_err, "Read ERROR")
+		if _err != nil {
 			return
 		}
 		rm.recv_ch <- string(_buf[0:_nr])
@@ -168,9 +168,9 @@ func (rm *Rmanager) writer(w io.Writer) {
 		}
 		if len(_msg) != 0 {
 			fmt.Println("SEND : " + string(_msg))
-			_, err := w.Write([]byte(_msg))
-			CommonError.CheckError(err, "Write ERROR")
-			if err != nil {
+			_, _err := w.Write([]byte(_msg))
+			CommonError.CheckError(_err, "Write ERROR")
+			if _err != nil {
 				break
 			}
 		}
@@ -187,8 +187,8 @@ func (rm *Rmanager) SendMesage(mes []byte) {
 func message_hello_handler(recv_mes []byte, head mes.MessageCommon) {
 	var ms mes.MessageHello
 	//Recv HelloMessage Unmarshal
-	if err := json.Unmarshal(recv_mes, &ms); err != nil {
-		fmt.Println("Unmarshal ERROR" + err.Error())
+	if _err := json.Unmarshal(recv_mes, &ms); _err != nil {
+		fmt.Println("Unmarshal ERROR" + _err.Error())
 		return
 	}
 	fmt.Printf("RECV:")
@@ -199,8 +199,8 @@ func message_hello_handler(recv_mes []byte, head mes.MessageCommon) {
 func message_resource_handler(recv_mes []byte, head mes.MessageCommon) {
 	var ms mes.MessageResourceControllRequest
 	//Recv MessageResourceControll Unmarshal
-	if err := json.Unmarshal(recv_mes, &ms); err != nil {
-		fmt.Println("Unmarshal ERROR" + err.Error())
+	if _err := json.Unmarshal(recv_mes, &ms); _err != nil {
+		fmt.Println("Unmarshal ERROR" + _err.Error())
 		return
 	}
 	fmt.Printf("RECV:")
@@ -211,8 +211,8 @@ func message_resource_handler(recv_mes []byte, head mes.MessageCommon) {
 func ipc_recv_process(rm *Rmanager, msg string) {
 	var _head mes.MessageCommon
 	_recv_mes := []byte(msg)
-	if err := json.Unmarshal(_recv_mes, &_head); err != nil {
-		fmt.Println("unmarshal ERROR" + err.Error())
+	if _err := json.Unmarshal(_recv_mes, &_head); _err != nil {
+		fmt.Println("unmarshal ERROR" + _err.Error())
 	}
 	//
 	var _processed bool = false

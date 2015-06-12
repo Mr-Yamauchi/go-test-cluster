@@ -19,9 +19,9 @@ type ControlConfig struct {
 func New(filename string) (ret *ControlConfig) {
 	var _config ControlConfig
 
-	_file, err := ioutil.ReadFile(filename)
-	if err != nil {
-		fmt.Println("Read Error")
+	_file, _err := ioutil.ReadFile(filename)
+	if _err != nil {
+		fmt.Println("Read Error", _err.Error())
 		return nil
 	}
 

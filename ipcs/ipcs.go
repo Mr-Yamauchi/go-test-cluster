@@ -40,8 +40,8 @@ func (ipcs IpcServerController) GetClientMap() map[int]*ClientConnect {
 //
 func (ipcs IpcServerController) SendIpcToClient(clients map[int]*ClientConnect, dest int, data []byte) int {
 	if _to, ok := clients[dest]; ok {
-		if _, err := _to.Con.Write(data); err != nil {
-			log.Println(err.Error())
+		if _, _err := _to.Con.Write(data); _err != nil {
+			log.Println(_err.Error())
 			_to.Con.Close()
 			delete(clients, dest)
 		}
@@ -49,7 +49,7 @@ func (ipcs IpcServerController) SendIpcToClient(clients map[int]*ClientConnect, 
 		log.Println("cannot find client.")
 	}
 
-	return 0
+	return consts.CL_OK
 }
 
 //
@@ -57,9 +57,9 @@ func (ipcs *IpcServerController) clientReceive(c net.Conn) {
 	for {
 		_buf := make([]byte, consts.BUFF_MAX)
 		//
-		_nr, err := c.Read(_buf)
-		if err != nil {
-			log.Println("read error(client disconnected):", err)
+		_nr, _err := c.Read(_buf);
+		if _err != nil {
+			log.Println("read error(client disconnected):", _err)
 			ipcs.ipcrecv_ch <- "exit"
 			c.Close()
 			return
@@ -78,15 +78,15 @@ func (ipcs *IpcServerController) clientReceive(c net.Conn) {
 
 //
 func (ipcs *IpcServerController) ipcServerStart() {
-	_nl, err := net.Listen("unix", ipcs.sockFiles)
-	if err != nil {
-		log.Fatal("listen error:", err)
+	_nl, _err := net.Listen("unix", ipcs.sockFiles)
+	if _err != nil {
+		log.Fatal("listen error:", _err)
 	}
 
 	for {
-		_con, err := _nl.Accept()
-		if err != nil {
-			log.Println("accept error:", err)
+		_con, _err := _nl.Accept()
+		if _err != nil {
+			log.Println("accept error:", _err)
 			continue
 		}
 		go ipcs.clientReceive(_con)

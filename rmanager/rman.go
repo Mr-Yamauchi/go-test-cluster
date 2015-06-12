@@ -27,6 +27,16 @@ type Rmanagers interface {
 type RunFunc func(rman base.Runner, list chhandler.ChannelHandler) int
 
 //
+type ExecrscMapper interface {
+	RecordRscOp(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int)
+	setRscTerminate(rscid int, op string)
+	isRscTerminate(rscid int) bool
+	isRscStop(rscid int) bool
+	stopTimer(rscid int, op string)
+	getCount(rscid int) int 
+}
+
+//
 type Execrsc struct {
 	seqno   uint64
 	rscid 	int
@@ -40,10 +50,12 @@ type Execrsc struct {
 	terminate bool				//Todo : Always false
 }
 
+//
 type ExecrscMap struct {
 	mapMutex	*sync.Mutex
 	onRsc map[int]*Execrsc
 }
+
 
 //
 func _NewExecrsc(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int)(r *Execrsc)  {
@@ -61,7 +73,7 @@ func _NewExecrsc(seqno uint64, rscid int, pid int, rsc string, parameters []stri
         }
 }
 //
-func _NewExecrscMap() ExecrscMap {
+func _NewExecrscMap() ExecrscMapper {
 	return ExecrscMap {	
 			mapMutex : new(sync.Mutex),
 			onRsc : make(map[int]*Execrsc),
@@ -69,7 +81,7 @@ func _NewExecrscMap() ExecrscMap {
 }
 
 //
-func (e *ExecrscMap) RecordRscOp(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int) {
+func (e ExecrscMap) RecordRscOp(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int) {
 	_r := _NewExecrsc(seqno, rscid, pid, rsc, parameters, op, ret, tm, count)
 
 	e.mapMutex.Lock()
@@ -78,20 +90,20 @@ func (e *ExecrscMap) RecordRscOp(seqno uint64, rscid int, pid int, rsc string, p
 	e.onRsc[rscid] = _r	
 }
 //
-func (e *ExecrscMap) setRscTerminate(rscid int, op string) {
+func (e ExecrscMap) setRscTerminate(rscid int, op string) {
 	if op == "stop" {
 		e.mapMutex.Lock()
 		defer e.mapMutex.Unlock()
 
-		if _, ok := e.onRsc[rscid]; ok {
+		if _, _ok := e.onRsc[rscid]; _ok {
 			e.onRsc[rscid].terminate = true
 		}
 	}
 }
 
 //
-func (e *ExecrscMap) isRscTerminate(rscid int) bool {
-	if _, ok := e.onRsc[rscid]; ok {
+func (e ExecrscMap) isRscTerminate(rscid int) bool {
+	if _, _ok := e.onRsc[rscid]; _ok {
 		_r := e.onRsc[rscid]
 		if _r.terminate {
 			return true
@@ -101,10 +113,10 @@ func (e *ExecrscMap) isRscTerminate(rscid int) bool {
 }
 
 //
-func (e *ExecrscMap) isRscStop(rscid int) bool {
-	if _, ok := e.onRsc[rscid]; ok {
-		r := e.onRsc[rscid]	
-		if r.op == "stop" {
+func (e ExecrscMap) isRscStop(rscid int) bool {
+	if _, _ok := e.onRsc[rscid]; _ok {
+		_r := e.onRsc[rscid]	
+		if _r.op == "stop" {
 			return true
 		}
 	}
@@ -112,9 +124,9 @@ func (e *ExecrscMap) isRscStop(rscid int) bool {
 }
 
 //
-func (e *ExecrscMap) stopTimer(rscid int, op string) {
+func (e ExecrscMap) stopTimer(rscid int, op string) {
 	if op == "stop"  {
-		if _, ok := e.onRsc[rscid]; ok {
+		if _, _ok := e.onRsc[rscid]; _ok {
 			e.mapMutex.Lock()
 			defer e.mapMutex.Unlock()
 
@@ -127,9 +139,9 @@ func (e *ExecrscMap) stopTimer(rscid int, op string) {
 }
 
 //
-func (e *ExecrscMap) getCount(rscid int) int {
+func (e ExecrscMap) getCount(rscid int) int {
 	_c := 0
-	if _, ok := e.onRsc[rscid]; ok {
+	if _, _ok := e.onRsc[rscid]; _ok {
 		_c = e.onRsc[rscid].count 
 	}
 	return _c
@@ -152,11 +164,11 @@ type Rmanager struct {
 	//
 	clients map[int]*ipcs.ClientConnect
 	//
-	execrscmap ExecrscMap
+	execrscmap ExecrscMapper
 }
 
 //
-func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
+func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer, oprcvch chan interface{}, rscopch chan interface{}, rscmap ExecrscMapper) int {
 	// Make Chanel
 	rman.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
@@ -174,18 +186,18 @@ func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 	rman.ipcServer = ipcsv
 
 	//
-	rman.rscOpRecvMessage_ch = make(chan interface{}, 128)
+	rman.rscOpRecvMessage_ch = oprcvch
 	
 	//	
-	rman.rscOp_ch = make(chan interface{}, 128)
+	rman.rscOp_ch = rscopch
 
 	//
-	rman.execrscmap = _NewExecrscMap()
+	rman.execrscmap = rscmap
 
 	// Start IPCServer
 	go rman.ipcServer.Run()
 
-	return 0
+	return consts.CL_OK
 
 }
 
@@ -193,9 +205,9 @@ func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer) int {
 func (rman *Rmanager) Run(list chhandler.ChannelHandler)(int, error) {
 	if rman.runFunc != nil {
 		rman.runFunc(rman, list)
-		return 0, nil
+		return consts.CL_OK, nil
 	}
-	return 1, errors.New("NOT RUNNNING")
+	return consts.CL_ERROR, errors.New("NOT RUNNNING")
 }
 
 
@@ -223,10 +235,10 @@ func (rman *Rmanager) setMonitor( seqno uint64, rscid int, rsc string, parameter
 func (rman *Rmanager) ExecRscOp( seqno uint64, rscid int, rsc string, parameters []string, op string, interval int64, timeout int64, delayMs int64, async bool) {
 
 	// Make channel for finish RA Prooess. 
-	_c := make(chan Execrsc, 128)
+	_fin_ch := make(chan Execrsc, 12)
 
 	// Make channel for timeout.
-	_timeout_ch := make(chan Execrsc, 128)
+	_timeout_ch := make(chan Execrsc, 12)
 
 	// not monitor add onRsc map.
 	if interval == 0 {
@@ -242,7 +254,7 @@ func (rman *Rmanager) ExecRscOp( seqno uint64, rscid int, rsc string, parameters
 
 	// Start RA Process.
 	go func() {
-		args := []string {
+		_args := []string {
 			rsc,
 			op,
 			"",
@@ -258,15 +270,15 @@ func (rman *Rmanager) ExecRscOp( seqno uint64, rscid int, rsc string, parameters
 		}
 
 		// Set Process Attributes.
-		procAttr := os.ProcAttr {
+		_procAttr := os.ProcAttr {
 			Files : []*os.File{nil, nil, nil},
 			Env   : os.Environ(),
 		}
 
 		// Exec RA
-		_p, err := os.StartProcess(args[0], args[0:], &procAttr)
-		if err != nil || _p.Pid < 0 {
-                       	debug.DEBUGT.Println("cannot fork child:", rsc, err, procAttr.Env)
+		_p, _err := os.StartProcess(_args[0], _args[0:], &_procAttr)
+		if _err != nil || _p.Pid < 0 {
+                       	debug.DEBUGT.Println("cannot fork child:", rsc, _err, _procAttr.Env)
 
 			_timeout_ch <- *_NewExecrsc(seqno, rscid, _p.Pid, rsc, parameters, op, consts.CL_NOT_FORK, nil, 0)
 
@@ -283,18 +295,18 @@ func (rman *Rmanager) ExecRscOp( seqno uint64, rscid int, rsc string, parameters
 			})
 						
 		// Wait.....
-		_s, err := _p.Wait()
+		_s, _err := _p.Wait()
 		_tm.Stop()
 		
 		// OK ? ERROR ?
-		ret := consts.CL_ERROR
+		_ret := consts.CL_ERROR
 		if _s.Exited() && _s.Success() {
-			ret = consts.CL_NORMAL_END
+			_ret = consts.CL_OK
 		}
 		
 		//
-		cnt := rman.execrscmap.getCount(rscid)
-		_c <- *_NewExecrsc(seqno, rscid, _p.Pid, rsc, parameters, op, ret, nil, cnt)
+		_cnt := rman.execrscmap.getCount(rscid)
+		_fin_ch <- *_NewExecrsc(seqno, rscid, _p.Pid, rsc, parameters, op, _ret, nil, _cnt)
 		if _s.Success() == false {
 			fmt.Println("---Success() ---> FALSE channel set")
 		}
@@ -302,39 +314,39 @@ func (rman *Rmanager) ExecRscOp( seqno uint64, rscid int, rsc string, parameters
 
 	// goruoutine for sync/async and manage timeout.
 	waitChildFunc := func()(exe Execrsc) {
-		var r Execrsc
+		var _ri Execrsc
 		select {
-			case r = <- _c : 
-				if  !rman.execrscmap.isRscTerminate(r.rscid) {
-					fmt.Println("child terminated :", r)
-					if r.op == "monitor" && r.count > 0 && r.ret == consts.CL_NORMAL_END && interval > 0 {
+			case _ri = <- _fin_ch : 
+				if  !rman.execrscmap.isRscTerminate(_ri.rscid) {
+					fmt.Println("child terminated :", _ri)
+					if _ri.op == "monitor" && _ri.count > 0 && _ri.ret == consts.CL_OK && interval > 0 {
 						fmt.Println("not send complete monitor to controller", time.Now()) 
 					} else {
 						select {
-							case rman.rscOp_ch <- r :
+							case rman.rscOp_ch <- _ri :
 						}
 					}
 				}
-			case r = <- _timeout_ch : 
-				fmt.Println("timeour occurred.", r)
-				if err := syscall.Kill(r.pid, syscall.SIGKILL); err != nil {
-					fmt.Println("cannnot child kill:",err.Error())
+			case _ri = <- _timeout_ch : 
+				fmt.Println("timeour occurred.", _ri)
+				if _err := syscall.Kill(_ri.pid, syscall.SIGKILL); _err != nil {
+					fmt.Println("cannnot child kill:", _err.Error())
 				} else {
-					fmt.Println("child kill:",r.rsc)
+					fmt.Println("child kill:", _ri.rsc)
 				}
 				select {
-					case rman.rscOp_ch <- r :
+					case rman.rscOp_ch <- _ri :
 				}
 		}
 
 		// Set of the repetition of the monitor.
-		if r.ret == consts.CL_NORMAL_END && interval > 0 {
+		if _ri.ret == consts.CL_OK && interval > 0 {
 			rman.setMonitor(seqno, rscid, rsc, parameters, op, interval, timeout, delayMs, async)	
 		}	
 
 		rman.execrscmap.setRscTerminate(rscid, op)
 
-		return r
+		return _ri
 	}
 
 	// Change async/sync call by goroutine.	
@@ -354,23 +366,28 @@ func (rman *Rmanager) Terminate() int {
 	rman.TerminateBase()
 	debug.DEBUGT.Println("Terminated...")
 
-	return 0
+	return consts.CL_OK
 }
 
 //
 func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer) *Rmanager {
 	_cn := new(Rmanager)
 
-	_cn.Init(runfn, ipcsv)
+	_cn.Init(runfn, 
+		ipcsv, 
+		make(chan interface{}, 128),
+		make(chan interface{}, 128),
+		_NewExecrscMap(),
+		)
 
 	return _cn
 }
 
 //
 func _isRmanager(ci interface{}) *Rmanager {
-	switch rman := ci.(type) {
+	switch _rman := ci.(type) {
 	case *Rmanager:
-		return rman
+		return _rman
 	default:
 	}
 	return nil

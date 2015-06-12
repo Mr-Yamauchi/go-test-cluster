@@ -25,10 +25,6 @@ package corosync
 #include <corosync/cpg.h>
 #include <corosync/quorum.h>
 
-#ifndef HOST_NAME_MAX
-#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
-#endif
-
 #define retrybackoff(counter) {    \
 		counter++;                    \
 		printf("Restart operation after %ds\n", counter); \
@@ -344,6 +340,7 @@ import "C"
 import "strings"
 import "../debug"
 
+//
 var coro_cfg_chan chan interface{}
 var coro_deliv_chan chan interface{}
 var coro_totem_chan chan interface{}
@@ -354,6 +351,7 @@ type ListData struct {
 	Nodeid	uint
 	Pid	uint
 }
+//
 type CorosyncConfchg struct {
 	Member_list []ListData
 	Left_list []ListData
