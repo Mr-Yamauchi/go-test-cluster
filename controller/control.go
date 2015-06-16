@@ -44,6 +44,7 @@ type Controll struct {
 func (cnt *Controll) Init(
 	runfn RunFunc,
 	ipcsv ipcs.IpcServer,
+	climap  map[int]*ipcs.ClientConnect, 
 	rmanc *ipcc.IpcClientController) int {
 
 	//
@@ -54,7 +55,7 @@ func (cnt *Controll) Init(
 	cnt.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
 	// Get map(for clients)
-	cnt.clients = ipcsv.GetClientMap()
+	cnt.clients = climap
 
 	// Set MainRun Fun
 	cnt.runFunc = runfn
@@ -99,7 +100,7 @@ func (cnt *Controll) _resourceControl() int {
 	var send bool = true
 	var _request mes.MessageResourceControllRequest
 
-	// Todo : Resource placement processing is necessary
+	// Todo : Resource placement processing is necessary(Recipe Processor).
 
 	switch step {
 		//
@@ -207,7 +208,7 @@ func NewControll(
 	rmanc *ipcc.IpcClientController) *Controll {
 	//
 	_cn := new(Controll)
-	_cn.Init(runfn, ipcsv, rmanc)
+	_cn.Init(runfn, ipcsv, ipcsv.GetClientMap(), rmanc)
 	//
 	return _cn
 }

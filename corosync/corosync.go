@@ -12,14 +12,6 @@ package corosync
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include <sys/uio.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <time.h>
-#include <sys/time.h>
-#include <assert.h>
-#include <limits.h>
 
 #include <corosync/corotypes.h>
 #include <corosync/cpg.h>
@@ -224,10 +216,7 @@ int runs () {
 	int select_fd_quorum;
 	int result;
 	int retries;
-	const char *options = "i";
-	int opt;
 	unsigned int nodeid;
-	char *fgets_res;
 	struct cpg_address member_list[64];
 	int member_list_entries;
 	int i;
@@ -276,25 +265,20 @@ int runs () {
 			}
 			recnt = 0;
 
-#if 0
-			printf ("membership list\n");
-			for (i = 0; i < member_list_entries; i++) {
-				printf ("node id %d pid %d\n", member_list[i].nodeid,
-					member_list[i].pid);
-			}
-#endif
 			FD_ZERO (&read_fds);
 			cpg_fd_get(handle, &select_fd);
 
-			result =  connect_quorum(&q_handle);
+			result = connect_quorum(&q_handle);
 			if (result != CS_OK) {
 				perror ("connect_quorum\n");
 			}
 			quorum_fd_get(q_handle, &select_fd_quorum);
 
 		}
+
 		FD_SET (select_fd, &read_fds);
 		FD_SET (select_fd_quorum, &read_fds);
+
 		if (select_fd > select_fd_quorum) {  
 			max_fd = select_fd;
 		} else {

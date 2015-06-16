@@ -28,12 +28,12 @@ type RunFunc func(rman base.Runner, list chhandler.ChannelHandler) int
 
 //
 type ExecrscMapper interface {
-	RecordRscOp(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int)
-	setRscTerminate(rscid int, op string)
-	isRscTerminate(rscid int) bool
-	isRscStop(rscid int) bool
-	stopTimer(rscid int, op string)
-	getCount(rscid int) int 
+	RecordRscOp(uint64, int, int, string, []string, string, int, *time.Timer, int)
+	setRscTerminate(int, string)
+	isRscTerminate(int) bool
+	isRscStop(int) bool
+	stopTimer(int, string)
+	getCount(int) int 
 }
 
 //
@@ -74,14 +74,14 @@ func _NewExecrsc(seqno uint64, rscid int, pid int, rsc string, parameters []stri
 }
 //
 func _NewExecrscMap() ExecrscMapper {
-	return ExecrscMap {	
+	return &ExecrscMap {	
 			mapMutex : new(sync.Mutex),
 			onRsc : make(map[int]*Execrsc),
 		}
 }
 
 //
-func (e ExecrscMap) RecordRscOp(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int) {
+func (e *ExecrscMap) RecordRscOp(seqno uint64, rscid int, pid int, rsc string, parameters []string, op string, ret int, tm *time.Timer, count int) {
 	_r := _NewExecrsc(seqno, rscid, pid, rsc, parameters, op, ret, tm, count)
 
 	e.mapMutex.Lock()
@@ -90,7 +90,7 @@ func (e ExecrscMap) RecordRscOp(seqno uint64, rscid int, pid int, rsc string, pa
 	e.onRsc[rscid] = _r	
 }
 //
-func (e ExecrscMap) setRscTerminate(rscid int, op string) {
+func (e *ExecrscMap) setRscTerminate(rscid int, op string) {
 	if op == "stop" {
 		e.mapMutex.Lock()
 		defer e.mapMutex.Unlock()
@@ -168,7 +168,8 @@ type Rmanager struct {
 }
 
 //
-func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer, oprcvch chan interface{}, rscopch chan interface{}, rscmap ExecrscMapper) int {
+func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer, oprcvch chan interface{}, rscopch chan interface{}, 
+		climap map[int]*ipcs.ClientConnect, rscmap ExecrscMapper) int {
 	// Make Chanel
 	rman.InitBase(syscall.SIGTERM, syscall.SIGCHLD)
 
@@ -177,7 +178,7 @@ func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer, oprcvch chan int
 	rman.Status_ch = nil
 
 	// Get map(for clients)
-	rman.clients = ipcsv.GetClientMap()
+	rman.clients = climap
 
 	// Set MainRun func
 	rman.runFunc = runfn
@@ -377,6 +378,7 @@ func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer) *Rmanager {
 		ipcsv, 
 		make(chan interface{}, 128),
 		make(chan interface{}, 128),
+		ipcsv.GetClientMap(),
 		_NewExecrscMap(),
 		)
 

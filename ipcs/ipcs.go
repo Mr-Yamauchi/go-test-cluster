@@ -12,7 +12,7 @@ import (
 type IpcServer interface {
 	GetClientMap() map[int]*ClientConnect
 	GetRecvChannel() chan interface{}
-	SendIpcToClient(clients map[int]*ClientConnect, dest int, data []byte) int
+	SendIpcToClient(map[int]*ClientConnect, int, []byte) int
 	Run()
 }
 
