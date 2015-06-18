@@ -116,7 +116,7 @@ func (cnt *Controll) _resourceControl() int {
 		mes.MessageResourceControllRequestBody {
 		Operation:     "start",
 		Rscid : 1,
-		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
+		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/" + "Dummy2",
 		Interval : 0,
 		Timeout	: 30000,
 		Delay : 0,	
@@ -143,7 +143,7 @@ func (cnt *Controll) _resourceControl() int {
 		mes.MessageResourceControllRequestBody {
 		Operation:     "monitor",
 		Rscid : 1,
-		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
+		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/" + "Dummy2",
 		Interval : 5000,
 		Timeout	: 20000,
 		Delay : 0,	
@@ -171,7 +171,7 @@ func (cnt *Controll) _resourceControl() int {
 		mes.MessageResourceControllRequestBody {
 		Operation:     "stop",
 		Rscid : 1,
-		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/Dummy2",
+		Resource_Name: "/usr/lib/ocf/resource.d/heartbeat/" + "Dummy2",
 		Interval : 0,
 		Timeout	: 20,
 		Delay : 0,	

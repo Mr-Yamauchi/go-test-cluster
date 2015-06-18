@@ -1,0 +1,59 @@
+{
+	"resources" : 
+	[
+		{
+			"rscid" : "rscid1",
+			"type" : "ocf",
+			"provider" : "heartbeat",
+			"name" : "Dummy",
+			"operations" : 
+			[
+				{
+					"opname" : "start",
+					"timeout" : 60,
+					"interval" : 0,
+					"onfail" : "ignore"
+				},
+				{
+					"opname" : "monitor",
+					"timeout" : 60,
+					"interval" : 10,
+					"onfail" : "ignore"
+				},
+				{
+					"opname" : "stop",
+					"timeout" : 60,
+					"interval" : 0,
+					"onfail" : "ignore"
+				}
+			]
+		},
+		{
+			"rscid" : "rscid2",
+			"type" : "ocf",
+			"provider" : "heartbeat",
+			"name" : "Dummy",
+			"operations" : 
+			[
+				{
+					"opname" : "start",
+					"timeout" : 60,
+					"interval" : 0,
+					"onfail" : "ignore"
+				},
+				{
+					"opname" : "monitor",
+					"timeout" : 60,
+					"interval" : 10,
+					"onfail" : "ignore"
+				},
+				{
+					"opname" : "stop",
+					"timeout" : 60,
+					"interval" : 0,
+					"onfail" : "ignore"
+				}
+			]
+		}
+	]	
+}

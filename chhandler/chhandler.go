@@ -65,7 +65,7 @@ func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
 	//
 	go func() {
 		for {
-			ct.Lock()
+			ct.RLock()
 			for _idx := 0; _idx < chData.GetLen(); _idx++ {
 				select {
 				case _sig_ch := <-ct.GetSignalChannel():
@@ -83,7 +83,7 @@ func ProcessRun(ct base.Runner, chData ChannelHandler) (wait int) {
 				default:
 				}
 			}
-			ct.Unlock()
+			ct.RUnlock()
 		}
 	}()
 	if _ch := ct.GetStatusChannel(); _ch != nil {

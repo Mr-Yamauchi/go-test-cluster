@@ -52,7 +52,7 @@ type Execrsc struct {
 
 //
 type ExecrscMap struct {
-	mapMutex	*sync.Mutex
+	mapMutex	*sync.RWMutex
 	onRsc map[int]*Execrsc
 }
 
@@ -75,7 +75,7 @@ func _NewExecrsc(seqno uint64, rscid int, pid int, rsc string, parameters []stri
 //
 func _NewExecrscMap() ExecrscMapper {
 	return &ExecrscMap {	
-			mapMutex : new(sync.Mutex),
+			mapMutex : new(sync.RWMutex),
 			onRsc : make(map[int]*Execrsc),
 		}
 }
@@ -103,6 +103,9 @@ func (e *ExecrscMap) setRscTerminate(rscid int, op string) {
 
 //
 func (e ExecrscMap) isRscTerminate(rscid int) bool {
+	e.mapMutex.RLock()
+	defer e.mapMutex.RUnlock()
+
 	if _, _ok := e.onRsc[rscid]; _ok {
 		_r := e.onRsc[rscid]
 		if _r.terminate {
@@ -114,6 +117,9 @@ func (e ExecrscMap) isRscTerminate(rscid int) bool {
 
 //
 func (e ExecrscMap) isRscStop(rscid int) bool {
+	e.mapMutex.RLock()
+	defer e.mapMutex.RUnlock()
+
 	if _, _ok := e.onRsc[rscid]; _ok {
 		_r := e.onRsc[rscid]	
 		if _r.op == "stop" {
@@ -127,8 +133,8 @@ func (e ExecrscMap) isRscStop(rscid int) bool {
 func (e ExecrscMap) stopTimer(rscid int, op string) {
 	if op == "stop"  {
 		if _, _ok := e.onRsc[rscid]; _ok {
-			e.mapMutex.Lock()
-			defer e.mapMutex.Unlock()
+			e.mapMutex.RLock()
+			defer e.mapMutex.RUnlock()
 
 			_r := e.onRsc[rscid]
 			if _r.tm != nil {

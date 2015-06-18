@@ -21,7 +21,7 @@ func New(filename string) (ret *ControlConfig) {
 
 	_file, _err := ioutil.ReadFile(filename)
 	if _err != nil {
-		fmt.Println("Read Error", _err.Error())
+		fmt.Println("read Error", _err.Error())
 		return nil
 	}
 

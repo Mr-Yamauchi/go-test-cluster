@@ -9,6 +9,8 @@ import (
 
 //
 type LockUnlocker interface {
+	RLock()
+        RUnlock()
 	Lock()
 	Unlock()
 }
@@ -22,6 +24,8 @@ type BaseController interface {
 
 //
 type Runner interface {
+	RLock()
+        RUnlock()
 	Lock()
 	Unlock()
 	GetSignalChannel() chan os.Signal
@@ -31,7 +35,7 @@ type Runner interface {
 
 //
 type BaseControll struct {
-	ChMutex   *sync.Mutex
+	ChMutex   *sync.RWMutex
 	Signal_ch chan os.Signal
 	Exit_ch   chan int
 	Status_ch chan interface{}
@@ -39,7 +43,7 @@ type BaseControll struct {
 
 //
 func (bse *BaseControll) InitBase(sigs ...os.Signal) {
-	bse.ChMutex = new(sync.Mutex)
+	bse.ChMutex = new(sync.RWMutex)
 	bse.Signal_ch = make(chan os.Signal, 1)
 	signal.Notify(bse.Signal_ch, sigs...)
 	bse.Exit_ch = make(chan int)
@@ -47,8 +51,18 @@ func (bse *BaseControll) InitBase(sigs ...os.Signal) {
 }
 
 //
+func (bse BaseControll) RLock() {
+	bse.ChMutex.RLock()
+}
+
+//
 func (bse BaseControll) Lock() {
 	bse.ChMutex.Lock()
+}
+
+//
+func (bse BaseControll) RUnlock() {
+	bse.ChMutex.RUnlock()
 }
 
 //

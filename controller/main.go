@@ -3,6 +3,7 @@ package main
 import (
 	"../debug"
 	"../chhandler"
+	recipe "../recipe"
 	configure "../configure"
 	"../consts"
 	"../errs"
@@ -191,6 +192,10 @@ func _initialize() (*Controll, *ChildControll) {
 	// Load Configuration
 	_config := configure.New("../configure/config.json")
 	_config.DumpConfig()
+
+	// Load Resources
+	_cres :=  recipe.New("../recipe/resource.json")
+	_cres.DumpResource()
 
 	// Create NewControll and Rmanager Connect
 	_cn := NewControll(
