@@ -6,6 +6,17 @@
 			"type" : "ocf",
 			"provider" : "heartbeat",
 			"name" : "Dummy",
+			"parameters" :
+			[
+				{
+					"name" : "pid",
+					"value" : "/tmp/test.pid"
+				},
+				{
+					"name" : "hold",
+					"value" : "on"
+				}
+			],
 			"operations" : 
 			[
 				{

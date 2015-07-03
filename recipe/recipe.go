@@ -8,6 +8,11 @@ import (
 )
 
 //
+type Parameter struct {
+	Name string 		`json:"name"`
+	Value string		`json:"value"`
+}
+//
 type Operation struct {
 	Opname string 		`json:"opname"`
 	Timeout int		`json:"timeout"`
@@ -21,6 +26,7 @@ type Resource struct {
 	Type	string 		`json:"type"`
 	Provider string		`json:"provider"`
 	Name	string		`json:"name"`
+	Params  []Parameter	`json:"parameters"`
 	Op	[]Operation	`json:"operations"`
 }
 //
