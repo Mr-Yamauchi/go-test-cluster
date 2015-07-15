@@ -33,28 +33,34 @@ type Resource struct {
 type ClusterResources struct {
 	Resources []Resource 	`json:"resources"`
 }
+//
+var instance *ClusterResources 
 
 //
 func New(filename string) (ret *ClusterResources) {
-	var _cres ClusterResources
 	
+	if (instance == nil ) {
+		instance = &ClusterResources{}
+	}	
+
 	_file, _err := ioutil.ReadFile(filename)
 	if _err != nil {
 		fmt.Println("read Error", _err.Error())
 		return nil
 	}
-	_err = json.Unmarshal(_file, &_cres)
+
+	_err = json.Unmarshal(_file, instance)
 	if _err != nil {
 		fmt.Println("unmarshal Error", _err.Error())
 		return nil
 	}
-	return &_cres
+	return instance
 	
 }
 
 //
 func (cres ClusterResources) DumpResource(){
-	fmt.Println(cres)
+	fmt.Println("### ClusterResources ####", cres)
 }
 
 //

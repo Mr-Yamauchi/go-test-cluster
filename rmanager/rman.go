@@ -173,6 +173,8 @@ type Rmanager struct {
 	execrscmap ExecrscMapper
 }
 
+var instance* Rmanager
+
 //
 func (rman *Rmanager) Init(runfn RunFunc, ipcsv ipcs.IpcServer, oprcvch chan interface{}, rscopch chan interface{}, 
 		climap map[int]*ipcs.ClientConnect, rscmap ExecrscMapper) int {
@@ -378,17 +380,19 @@ func (rman *Rmanager) Terminate() int {
 
 //
 func NewRmanager(runfn RunFunc, ipcsv ipcs.IpcServer) *Rmanager {
-	_cn := new(Rmanager)
+	if (instance == nil) {
+		instance = &Rmanager{}
 
-	_cn.Init(runfn, 
-		ipcsv, 
-		make(chan interface{}, 128),
-		make(chan interface{}, 128),
-		ipcsv.GetClientMap(),
-		_NewExecrscMap(),
+		instance.Init(runfn, 
+			ipcsv, 
+			make(chan interface{}, 128),
+			make(chan interface{}, 128),
+			ipcsv.GetClientMap(),
+			_NewExecrscMap(),
 		)
+	}
 
-	return _cn
+	return instance
 }
 
 //

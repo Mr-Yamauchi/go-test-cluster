@@ -39,6 +39,8 @@ type Controll struct {
 	//rmanager connect info
 	rmanConnect *ipcc.IpcClientController
 }
+//
+var instance *Controll
 
 //
 func (cnt *Controll) Init(
@@ -207,10 +209,12 @@ func NewControll(
 	ipcsv ipcs.IpcServer,
 	rmanc *ipcc.IpcClientController) *Controll {
 	//
-	_cn := new(Controll)
-	_cn.Init(runfn, ipcsv, ipcsv.GetClientMap(), rmanc)
+	if (instance == nil) {
+		instance = &Controll{}
+		instance.Init(runfn, ipcsv, ipcsv.GetClientMap(), rmanc)
+	}
 	//
-	return _cn
+	return instance
 }
 
 //
