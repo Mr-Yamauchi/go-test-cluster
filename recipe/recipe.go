@@ -30,8 +30,14 @@ type Resource struct {
 	Op	[]Operation	`json:"operations"`
 }
 //
+type Order struct {
+	Rscid  	string		`json:"rscid"`
+}
+//
 type ClusterResources struct {
 	Resources []Resource 	`json:"resources"`
+	StartOrders []Order	`json:"startorders"`
+	StopOrders []Order	`json:"stoporders"`
 }
 //
 var instance *ClusterResources 
